@@ -1,2 +1,1 @@
-// Validators will be implemented in later phases
-export {};
+export { registerSchema, loginSchema } from './authValidator';

@@ -8,24 +8,39 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
   },
-  "keywords": ["erp", "crm", "express", "typescript"],
+  "keywords": [
+    "erp",
+    "crm",
+    "express",
+    "typescript"
+  ],
   "author": "Fundsroom Infotech Pvt. Ltd.",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.11.3"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.10.5",
     "@types/pg": "^8.10.9",
-    "typescript": "^5.3.3",
+    "jest": "^30.4.2",
+    "joi": "^18.2.3",
+    "ts-jest": "^29.4.12",
+    "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
-    "ts-node": "^10.9.2"
+    "typescript": "^5.3.3"
   }
 }
