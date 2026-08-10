@@ -12,3 +12,9 @@ export {
   updateOrderStatusSchema,
   paginationSchema,
 } from './businessValidator';
+export {
+  createCustomerActivitySchema,
+  updateCustomerActivitySchema,
+  reportFiltersSchema,
+  dashboardParamsSchema,
+} from './phase4Validator';

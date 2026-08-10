@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './context'
-import { Customers, Products, Inventory, Orders } from './pages'
+import { Customers, Products, Inventory, Orders, Dashboard, Reports } from './pages'
 import './App.css'
 
 function App() {
@@ -83,6 +83,14 @@ function MainApp() {
             >
               Orders
             </button>
+            <button
+              onClick={() => setCurrentPage('reports')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                currentPage === 'reports' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Reports
+            </button>
           </div>
         </div>
       </nav>
@@ -93,59 +101,8 @@ function MainApp() {
         {currentPage === 'products' && <Products />}
         {currentPage === 'inventory' && <Inventory />}
         {currentPage === 'orders' && <Orders />}
+        {currentPage === 'reports' && <Reports />}
       </main>
-    </div>
-  )
-}
-
-function Dashboard() {
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Total Customers</div>
-          <div className="text-3xl font-bold text-gray-900 mt-2">-</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Total Products</div>
-          <div className="text-3xl font-bold text-gray-900 mt-2">-</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Total Orders</div>
-          <div className="text-3xl font-bold text-gray-900 mt-2">-</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="text-sm font-medium text-gray-500">Revenue</div>
-          <div className="text-3xl font-bold text-gray-900 mt-2">₹-</div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 text-left">
-            <div className="font-medium">Add Customer</div>
-            <div className="text-sm opacity-90">Create new customer record</div>
-          </button>
-          <button className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 text-left">
-            <div className="font-medium">Add Product</div>
-            <div className="text-sm opacity-90">Create new product</div>
-          </button>
-          <button className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 text-left">
-            <div className="font-medium">Create Order</div>
-            <div className="text-sm opacity-90">Create new sales order</div>
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-blue-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-2">Phase 3 Status</h3>
-        <p className="text-blue-800">
-          Core business modules are now available. You can manage customers, products, inventory, and orders through the navigation menu above.
-        </p>
-      </div>
     </div>
   )
 }

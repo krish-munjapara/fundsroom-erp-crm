@@ -3,3 +3,7 @@ export { CustomerService } from './customerService';
 export { ProductService } from './productService';
 export { InventoryService } from './inventoryService';
 export { OrderService } from './orderService';
+export { DashboardService } from './dashboardService';
+export { ReportingService } from './reportingService';
+export { CustomerActivityService } from './customerActivityService';
+export { InventoryReportingService } from './inventoryReportingService';

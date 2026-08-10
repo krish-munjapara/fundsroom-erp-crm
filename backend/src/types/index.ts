@@ -243,6 +243,150 @@ export interface OrderItemDto {
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
+// Customer Activity Types
+export interface CustomerActivity {
+  id: number;
+  customer_id: number;
+  activity_type: string;
+  subject: string;
+  description?: string;
+  status: string;
+  due_date?: Date;
+  completed_at?: Date;
+  assigned_to?: number;
+  created_by?: number;
+  updated_by?: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CreateCustomerActivityDto {
+  customer_id: number;
+  activity_type: string;
+  subject: string;
+  description?: string;
+  status?: string;
+  due_date?: Date;
+  assigned_to?: number;
+  created_by?: number;
+}
+
+export interface UpdateCustomerActivityDto {
+  id?: number;
+  activity_type?: string;
+  subject?: string;
+  description?: string;
+  status?: string;
+  due_date?: Date;
+  completed_at?: Date;
+  assigned_to?: number;
+  updated_by?: number;
+}
+
+// Dashboard Statistics Types
+export interface DashboardStats {
+  total_customers: number;
+  total_products: number;
+  total_orders: number;
+  total_sales: number;
+  low_stock_count: number;
+  pending_orders: number;
+  confirmed_orders: number;
+  delivered_orders: number;
+  cancelled_orders: number;
+}
+
+export interface RecentOrder {
+  id: number;
+  order_number: string;
+  customer_name: string;
+  total_amount: number;
+  status: string;
+  order_date: Date;
+}
+
+export interface RecentActivity {
+  id: number;
+  customer_name: string;
+  activity_type: string;
+  subject: string;
+  status: string;
+  created_at: Date;
+}
+
+// Report Filter Types
+export interface ReportFilters {
+  start_date?: Date;
+  end_date?: Date;
+  customer_id?: number;
+  product_id?: number;
+  status?: string;
+  activity_type?: string;
+}
+
+// Report Result Types
+export interface SalesReport {
+  total_orders: number;
+  total_revenue: number;
+  average_order_value: number;
+  orders_by_status: Record<string, number>;
+  revenue_by_month: Array<{ month: string; revenue: number }>;
+}
+
+export interface CustomerReport {
+  total_customers: number;
+  active_customers: number;
+  total_credit_limit: number;
+  top_customers: Array<{
+    customer_id: number;
+    company_name: string;
+    total_orders: number;
+    total_spent: number;
+  }>;
+}
+
+export interface ProductPerformanceReport {
+  total_products: number;
+  active_products: number;
+  top_selling_products: Array<{
+    product_id: number;
+    product_name: string;
+    sku: string;
+    total_quantity_sold: number;
+    total_revenue: number;
+  }>;
+}
+
+export interface InventoryReport {
+  total_products: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  total_inventory_value: number;
+  stock_summary: Array<{
+    product_id: number;
+    product_name: string;
+    sku: string;
+    quantity: number;
+    available_quantity: number;
+    value: number;
+  }>;
+}
+
+export interface StockMovementSummary {
+  total_movements: number;
+  stock_in: number;
+  stock_out: number;
+  movements_by_type: Record<string, number>;
+  recent_movements: Array<{
+    id: number;
+    product_name: string;
+    sku: string;
+    movement_type: string;
+    quantity: number;
+    created_at: Date;
+  }>;
+}
+
 // Pagination Types
 export interface PaginationParams {
   page?: number;
