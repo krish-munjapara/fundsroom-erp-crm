@@ -1,2 +1,1 @@
-// Context will be implemented in later phases
-export {};
+export { AuthProvider, useAuth } from './AuthContext';
