@@ -29,7 +29,7 @@ function MainApp() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-navy-50 flex items-center justify-center">
+      <div className="h-full bg-navy-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
       </div>
     )
@@ -109,14 +109,13 @@ function LoginPage() {
       showToast('Signed in successfully', 'success')
     } catch (err) {
       setError('Invalid email or password')
-      showToast('Invalid email or password', 'error')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F8FC] flex">
+    <div className="h-full min-h-0 overflow-y-auto bg-[#F7F8FC] flex">
       {/* Left Brand Panel - 38-40% width on desktop */}
       <div className="hidden lg:flex lg:w-[40%] bg-gradient-to-br from-[#3730A3] to-[#4F46E5] relative overflow-hidden">
         {/* Subtle decorative shapes */}
@@ -133,7 +132,7 @@ function LoginPage() {
           
           {/* Brand Name */}
           <h1 className="text-3xl xl:text-4xl font-bold text-white mb-1">FUNDSROOM</h1>
-          <p className="text-lg text-white/70 mb-8 font-medium">ERP + CRM</p>
+          <p className="text-lg text-white/70 mb-2 font-medium">ERP + CRM Operations Portal</p>
           
           {/* Tagline */}
           <p className="text-white/90 text-xl mb-3 leading-tight font-medium">
@@ -260,7 +259,7 @@ function LoginPage() {
               disabled={loading}
               className="w-full bg-[#4F46E5] text-white py-[13px] rounded-lg font-medium hover:bg-[#4338CA] disabled:bg-[#9CA3AF] disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2"
             >
-              {loading ? 'Signing in...' : 'Sign in →'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 

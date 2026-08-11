@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { getPermissions } from '../../utils/permissions';
+import { readSidebarCollapsed, writeSidebarCollapsed } from './layoutConstants';
+import { ChevronLeftIcon, ChevronRightIcon } from '../icons/navIcons';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -25,39 +27,62 @@ export default function AppLayout({
   user,
   onLogout,
 }: AppLayoutProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const permissions = getPermissions(user?.role);
 
+  useEffect(() => {
+    writeSidebarCollapsed(sidebarCollapsed);
+  }, [sidebarCollapsed]);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
   return (
-    <div className="min-h-screen bg-navy-50">
+    <div
+      className="app-shell bg-navy-50"
+      data-sidebar-collapsed={sidebarCollapsed ? 'true' : 'false'}
+    >
       <Sidebar
         currentPage={currentPage}
         onPageChange={onPageChange}
         collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
         onLogout={onLogout}
         allowedPages={permissions.pages}
         canAccessSettings={permissions.canAccessSettings}
       />
-      <Topbar 
-        pageTitle={pageTitle} 
-        user={user} 
-        onLogout={onLogout}
-        onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-        onPageChange={onPageChange}
-      />
-      <main
-        className={`pt-20 transition-all duration-300 ${
-          sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
-        }`}
+
+      {/* Toggle: fixed to viewport, positioned at sidebar right edge via CSS */}
+      <button
+        type="button"
+        className="sidebar-toggle"
+        onClick={handleToggleSidebar}
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
-          {children}
-        </div>
-      </main>
+        {sidebarCollapsed ? (
+          <ChevronRightIcon className="w-4 h-4 text-navy-500" />
+        ) : (
+          <ChevronLeftIcon className="w-4 h-4 text-navy-500" />
+        )}
+      </button>
+
+      <div className="app-main bg-navy-50">
+        <Topbar
+          pageTitle={pageTitle}
+          user={user}
+          onLogout={onLogout}
+          onMobileMenuToggle={() => setMobileSidebarOpen((open) => !open)}
+          onPageChange={onPageChange}
+        />
+        <main className="app-main-scroll">
+          <div className="page-content w-full max-w-full box-border px-4 sm:px-6 lg:px-8 py-6">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

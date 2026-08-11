@@ -3,10 +3,13 @@ import { inventoryService, productService } from '../services';
 import type { StockMovement, Product } from '../services';
 import { KPICard, EmptyState } from '../components/ui';
 import { formatDate } from '../utils/formatters';
-import { usePermissions, useToast } from '../context';
+import { usePermissions, useSearch, useToast } from '../context';
+import StockAdjustModal, { type StockAdjustmentSaveResult } from '../components/inventory/StockAdjustModal';
+import { mapStockAdjustmentApiError } from '../utils/stockAdjustmentValidation';
 
 export default function Inventory() {
   const permissions = usePermissions();
+  const { consumePendingSearch } = useSearch();
   const { showToast } = useToast();
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -22,6 +25,11 @@ export default function Inventory() {
     loadStockMovements();
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    const term = consumePendingSearch('inventory');
+    if (term) setSearchTerm(term);
+  }, [consumePendingSearch]);
 
   const loadStockMovements = async () => {
     try {
@@ -68,19 +76,39 @@ export default function Inventory() {
     return matchesSearch && matchesType;
   });
 
-  const handleStockAdjust = async (data: { productId: number; quantity: number; movement_type: 'in' | 'out'; notes: string }) => {
+  const handleStockAdjust = async (data: {
+    productId: number;
+    quantity: number;
+    movement_type: 'in' | 'out';
+    notes: string;
+  }): Promise<StockAdjustmentSaveResult> => {
     try {
-      const response = await productService.adjustStock(data.productId, data);
+      const response = await productService.adjustStock(data.productId, {
+        quantity: data.quantity,
+        movement_type: data.movement_type,
+        notes: data.notes,
+      });
       if (response.success) {
         setShowStockAdjustModal(false);
-        showToast('Stock updated successfully', 'success');
+        showToast(
+          data.movement_type === 'in' ? 'Stock added successfully' : 'Stock removed successfully',
+          'success'
+        );
         loadStockMovements();
         loadProducts();
-      } else {
-        setError(response.message || 'Failed to adjust stock');
+        return { success: true };
       }
-    } catch (err) {
-      setError('An error occurred while adjusting stock');
+
+      const message = mapStockAdjustmentApiError(response.message);
+      const field = message.toLowerCase().includes('insufficient') || message.toLowerCase().includes('available')
+        ? ('quantity' as const)
+        : undefined;
+      return { success: false, message, field };
+    } catch {
+      return {
+        success: false,
+        message: 'Unable to save the stock movement. Please try again.',
+      };
     }
   };
 
@@ -202,8 +230,8 @@ export default function Inventory() {
 
       {/* Stock Movements Table */}
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1100px] divide-y divide-navy-100">
+        <div className="table-wrapper">
+          <table className="min-w-[1100px] w-full divide-y divide-navy-100">
             <thead className="bg-navy-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-600 uppercase tracking-wider">Product</th>
@@ -291,100 +319,6 @@ export default function Inventory() {
           onClose={() => setShowDetailsModal(false)}
         />
       )}
-    </div>
-  );
-}
-
-function StockAdjustModal({ products, onClose, onSave }: { products: Product[]; onClose: () => void; onSave: (data: { productId: number; quantity: number; movement_type: 'in' | 'out'; notes: string }) => void }) {
-  const [formData, setFormData] = useState({
-    productId: 0,
-    quantity: 1,
-    movement_type: 'in' as 'in' | 'out',
-    notes: '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.productId) newErrors.productId = 'Product is required';
-    if (!formData.quantity || formData.quantity <= 0) newErrors.quantity = 'Quantity must be greater than 0';
-    if (!formData.notes?.trim()) newErrors.notes = 'Reason is required';
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length === 0) {
-      onSave(formData);
-    }
-  };
-
-  const selectedProduct = products.find(p => p.id === formData.productId);
-
-  return (
-    <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-lg-premium border border-navy-200 flex flex-col">
-        <div className="p-6 border-b border-navy-200">
-          <h2 className="text-xl font-semibold text-navy-900">Stock Adjustment</h2>
-          <p className="text-sm text-navy-500 mt-1">Record stock IN or OUT movement</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Product *</label>
-              <select
-                value={formData.productId}
-                onChange={(e) => setFormData({ ...formData, productId: parseInt(e.target.value) })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              >
-                <option value="">Select Product</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-                ))}
-              </select>
-              {errors.productId && <p className="text-danger-600 text-xs mt-1">{errors.productId}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Movement Type *</label>
-              <select
-                value={formData.movement_type}
-                onChange={(e) => setFormData({ ...formData, movement_type: e.target.value as 'in' | 'out' })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              >
-                <option value="in">Stock In</option>
-                <option value="out">Stock Out</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Quantity *</label>
-              <input
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-              {errors.quantity && <p className="text-danger-600 text-xs mt-1">{errors.quantity}</p>}
-              {selectedProduct && formData.movement_type === 'out' && formData.quantity > selectedProduct.current_stock && (
-                <p className="text-danger-600 text-xs mt-1">Cannot exceed available stock ({selectedProduct.current_stock})</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Reason *</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-              {errors.notes && <p className="text-danger-600 text-xs mt-1">{errors.notes}</p>}
-            </div>
-          </form>
-        </div>
-        <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors">Cancel</button>
-          <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Save Movement</button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -2,23 +2,50 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth, usePermissions, useToast } from '../context';
 import { reportingService } from '../services';
 import { EmptyState } from '../components/ui';
+import SalesReportView, { type SalesReportData } from '../components/reports/SalesReportView';
 import { formatCurrency } from '../utils/formatters';
 import { buildReportCsv, downloadCsv } from '../utils/exportCsv';
+import {
+  DATE_RANGE_PRESET_LABELS,
+  getDateRangeForPreset,
+  isValidDateRange,
+  type DateRangePreset,
+} from '../utils/dateRangePresets';
 
 type ReportType = 'sales' | 'customers' | 'products' | 'inventory';
+
+const PRESET_OPTIONS: DateRangePreset[] = ['today', '7d', '30d', '3m', '6m', '1y', 'custom'];
+
+const defaultRange = getDateRangeForPreset('7d');
 
 export default function Reports() {
   const { isAuthenticated } = useAuth();
   const permissions = usePermissions();
   const { showToast } = useToast();
   const [reportType, setReportType] = useState<ReportType>('sales');
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('7d');
+  const [startDate, setStartDate] = useState<string>(defaultRange.start);
+  const [endDate, setEndDate] = useState<string>(defaultRange.end);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const applyPreset = useCallback((preset: DateRangePreset) => {
+    setDatePreset(preset);
+    if (preset !== 'custom') {
+      const range = getDateRangeForPreset(preset);
+      setStartDate(range.start);
+      setEndDate(range.end);
+    }
+  }, []);
 
   const loadReport = useCallback(async () => {
+    if (datePreset === 'custom' && !isValidDateRange(startDate, endDate)) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -44,7 +71,7 @@ export default function Reports() {
       }
 
       if (response.success && response.data) {
-        setReportData(response.data);
+        setReportData(response.data as Record<string, unknown>);
       } else {
         setReportData(null);
         setError(response.message || 'Failed to load report');
@@ -54,41 +81,44 @@ export default function Reports() {
       setError('Unable to load report. Please try again.');
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
-  }, [reportType, startDate, endDate]);
+  }, [reportType, startDate, endDate, datePreset]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadReport();
+    if (!isAuthenticated) return;
+    if (datePreset === 'custom' && startDate && endDate && !isValidDateRange(startDate, endDate)) {
+      return;
     }
-  }, [isAuthenticated, loadReport]);
+    loadReport();
+  }, [isAuthenticated, loadReport, datePreset, startDate, endDate]);
+
+  const handleStartDateChange = (value: string) => {
+    setDatePreset('custom');
+    setStartDate(value);
+  };
+
+  const handleEndDateChange = (value: string) => {
+    setDatePreset('custom');
+    setEndDate(value);
+  };
+
+  const handleClearDates = () => {
+    applyPreset('7d');
+  };
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Please log in to view reports</p>
+        <p className="text-navy-600">Please log in to view reports</p>
       </div>
     );
   }
 
-  if (loading) return <ReportsSkeleton />;
-  if (error) return (
-    <div className="p-6">
-      <div className="bg-danger-50 border border-danger-200 rounded-lg p-6 text-center">
-        <p className="text-danger-700 mb-4">{error}</p>
-        <button
-          onClick={loadReport}
-          className="px-4 py-2 bg-danger-600 text-white rounded-lg hover:bg-danger-700 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    </div>
-  );
+  if (initialLoading) return <ReportsSkeleton />;
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-gradient-to-br from-primary-600 to-primary-700 rounded-xl flex items-center justify-center shadow-sm">
@@ -101,14 +131,30 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Report Filters */}
-      <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-end">
-          <div className="flex-1">
+      <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-4 space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          {PRESET_OPTIONS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => applyPreset(preset)}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                datePreset === preset
+                  ? 'bg-primary-600 text-white shadow-sm-premium'
+                  : 'bg-white text-navy-700 hover:bg-navy-50 border border-navy-200'
+              }`}
+            >
+              {DATE_RANGE_PRESET_LABELS[preset]}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-4 items-end">
+          <div className="flex-1 min-w-[12rem]">
             <label className="block text-sm font-medium text-navy-700 mb-1">Report Type</label>
             <select
               value={reportType}
-              onChange={(e) => setReportType(e.target.value as any)}
+              onChange={(e) => setReportType(e.target.value as ReportType)}
               className="w-full border border-navy-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
             >
               <option value="sales">Sales Report</option>
@@ -122,7 +168,7 @@ export default function Reports() {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => handleStartDateChange(e.target.value)}
               className="border border-navy-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
             />
           </div>
@@ -131,47 +177,85 @@ export default function Reports() {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => handleEndDateChange(e.target.value)}
               className="border border-navy-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
             />
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={loadReport}
-              className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5"
+              disabled={loading || (datePreset === 'custom' && !isValidDateRange(startDate, endDate))}
+              className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
-              Generate Report
+              {loading ? 'Generating…' : 'Generate Report'}
             </button>
-            {(startDate || endDate) && (
-              <button
-                onClick={() => {
-                  setStartDate('');
-                  setEndDate('');
-                }}
-                className="px-4 py-2.5 text-navy-600 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
-              >
-                Clear
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleClearDates}
+              className="px-4 py-2.5 text-navy-600 hover:text-navy-900 hover:bg-navy-50 rounded-lg transition-all"
+            >
+              Clear
+            </button>
             {permissions.canExportReports && reportData && (
               <button
-                onClick={() => {
-                  downloadCsv(`${reportType}-report.csv`, buildReportCsv(reportType, reportData));
-                  showToast('Report exported as CSV', 'success');
+                type="button"
+                disabled={isExporting || loading}
+                onClick={async () => {
+                  setIsExporting(true);
+                  try {
+                    downloadCsv(`${reportType}-report.csv`, buildReportCsv(reportType, reportData));
+                    showToast('Report exported as CSV', 'success');
+                  } finally {
+                    setIsExporting(false);
+                  }
                 }}
-                className="px-4 py-2.5 border border-navy-300 text-navy-700 rounded-lg hover:bg-navy-50 transition-all"
+                className="px-4 py-2.5 border border-navy-300 text-navy-700 rounded-lg hover:bg-navy-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
-                Export CSV
+                {isExporting ? (
+                  <>
+                    <span
+                      className="inline-block h-4 w-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin"
+                      aria-hidden="true"
+                    />
+                    Exporting…
+                  </>
+                ) : (
+                  'Export CSV'
+                )}
               </button>
             )}
           </div>
         </div>
+
+        {datePreset === 'custom' && startDate && endDate && startDate > endDate && (
+          <p className="text-sm text-danger-600">Start date must be before or equal to end date.</p>
+        )}
       </div>
 
-      {/* Report Content */}
-      {reportData && !loading && !error && (
-        <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-6">
-          {reportType === 'sales' && <SalesReport data={reportData} />}
+      {error && (
+        <div className="bg-danger-50 border border-danger-200 rounded-lg p-6 text-center">
+          <p className="text-danger-700 mb-4">{error}</p>
+          <button
+            type="button"
+            onClick={loadReport}
+            className="px-4 py-2 bg-danger-600 text-white rounded-lg hover:bg-danger-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {!error && reportData && (
+        <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-6 relative min-w-0">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-xl">
+              <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+            </div>
+          )}
+          {reportType === 'sales' && (
+            <SalesReportView data={reportData as unknown as SalesReportData} loading={loading} />
+          )}
           {reportType === 'customers' && <CustomerReport data={reportData} />}
           {reportType === 'products' && <ProductReport data={reportData} />}
           {reportType === 'inventory' && <InventoryReport data={reportData} />}
@@ -185,6 +269,7 @@ export default function Reports() {
           description="Select a report type and generate a report to view analytics"
           action={
             <button
+              type="button"
               onClick={loadReport}
               className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
@@ -197,260 +282,200 @@ export default function Reports() {
   );
 }
 
-function SalesReport({ data }: { data: any }) {
-  return (
-    <div>
-      <h2 className="text-xl font-semibold mb-4 text-navy-900">Sales Report</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
-          <p className="text-sm text-navy-600">Total Orders</p>
-          <p className="text-2xl font-bold text-navy-900">{data.total_orders}</p>
-        </div>
-        <div className="bg-success-50 p-4 rounded-xl border border-success-100">
-          <p className="text-sm text-navy-600">Total Revenue</p>
-          <p className="text-2xl font-bold text-navy-900">{formatCurrency(data.total_revenue)}</p>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-          <p className="text-sm text-navy-600">Avg Order Value</p>
-          <p className="text-2xl font-bold text-navy-900">{formatCurrency(data.average_order_value)}</p>
-        </div>
-      </div>
+function CustomerReport({ data }: { data: Record<string, unknown> }) {
+  const topCustomers =
+    (data.top_customers as Array<{
+      customer_id: number;
+      company_name: string;
+      total_orders: number;
+      total_spent: number;
+    }>) || [];
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
-          <p className="text-sm text-navy-600">Pending Orders</p>
-          <p className="text-2xl font-bold text-navy-900">{data.pending_orders ?? data.orders_by_status?.pending ?? 0}</p>
-        </div>
-        <div className="bg-success-50 p-4 rounded-xl border border-success-100">
-          <p className="text-sm text-navy-600">Confirmed Orders</p>
-          <p className="text-2xl font-bold text-navy-900">{data.confirmed_orders ?? data.orders_by_status?.confirmed ?? 0}</p>
-        </div>
-      </div>
-
-      <h3 className="font-semibold mb-2 text-navy-900">Orders by Status</h3>
-      <div className="space-y-2 mb-6">
-        {Object.entries(data.orders_by_status || {}).map(([status, count]: [string, any]) => (
-          <div key={status} className="flex justify-between border-b border-navy-200 pb-2">
-            <span className="capitalize text-navy-700">{status}</span>
-            <span className="font-medium text-navy-900">{count}</span>
-          </div>
-        ))}
-      </div>
-
-      {data.revenue_by_month?.length > 0 && (
-        <>
-          <h3 className="font-semibold mb-2 text-navy-900">Sales by Date</h3>
-          <div className="space-y-2 mb-6">
-            {data.revenue_by_month.map((item: any) => (
-              <div key={item.month} className="flex justify-between border-b border-navy-200 pb-2">
-                <span className="text-navy-700">{item.month}</span>
-                <span className="font-medium text-navy-900">{formatCurrency(item.revenue)}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {data.sales_by_customer?.length > 0 && (
-        <>
-          <h3 className="font-semibold mb-2 text-navy-900">Sales by Customer</h3>
-          <div className="overflow-x-auto mb-6">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-navy-200">
-                  <th className="text-left py-2 text-navy-600">Customer</th>
-                  <th className="text-right py-2 text-navy-600">Orders</th>
-                  <th className="text-right py-2 text-navy-600">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.sales_by_customer.map((customer: any) => (
-                  <tr key={customer.customer_id} className="border-b border-navy-200">
-                    <td className="py-2 text-navy-900">{customer.company_name}</td>
-                    <td className="text-right py-2 text-navy-900">{customer.total_orders}</td>
-                    <td className="text-right py-2 text-navy-900">{formatCurrency(customer.total_revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {data.sales_by_product?.length > 0 && (
-        <>
-          <h3 className="font-semibold mb-2 text-navy-900">Sales by Product</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-navy-200">
-                  <th className="text-left py-2 text-navy-600">Product</th>
-                  <th className="text-left py-2 text-navy-600">SKU</th>
-                  <th className="text-right py-2 text-navy-600">Quantity</th>
-                  <th className="text-right py-2 text-navy-600">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.sales_by_product.map((product: any) => (
-                  <tr key={product.product_id} className="border-b border-navy-200">
-                    <td className="py-2 text-navy-900">{product.product_name}</td>
-                    <td className="py-2 text-navy-900">{product.sku}</td>
-                    <td className="text-right py-2 text-navy-900">{product.total_quantity}</td>
-                    <td className="text-right py-2 text-navy-900">{formatCurrency(product.total_revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function CustomerReport({ data }: { data: any }) {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4 text-navy-900">Customer Report</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
           <p className="text-sm text-navy-600">Total Customers</p>
-          <p className="text-2xl font-bold text-navy-900">{data.total_customers}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.total_customers ?? 0)}</p>
         </div>
         <div className="bg-success-50 p-4 rounded-xl border border-success-100">
           <p className="text-sm text-navy-600">Active Customers</p>
-          <p className="text-2xl font-bold text-navy-900">{data.active_customers}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.active_customers ?? 0)}</p>
         </div>
         <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
           <p className="text-sm text-navy-600">Total Credit Limit</p>
-          <p className="text-2xl font-bold text-navy-900">{formatCurrency(data.total_credit_limit)}</p>
+          <p className="text-2xl font-bold text-navy-900">
+            {formatCurrency(Number(data.total_credit_limit ?? 0))}
+          </p>
         </div>
       </div>
 
       <h3 className="font-semibold mb-2 text-navy-900">Top Customers</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-navy-200">
-              <th className="text-left py-2 text-navy-600">Company</th>
-              <th className="text-right py-2 text-navy-600">Orders</th>
-              <th className="text-right py-2 text-navy-600">Total Spent</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.top_customers?.map((customer: any) => (
-              <tr key={customer.customer_id} className="border-b border-navy-200">
-                <td className="py-2 text-navy-900">{customer.company_name}</td>
-                <td className="text-right py-2 text-navy-900">{customer.total_orders}</td>
-                <td className="text-right py-2 text-navy-900">{formatCurrency(customer.total_spent)}</td>
+      {topCustomers.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-navy-200">
+                <th className="text-left py-2 text-navy-600">Company</th>
+                <th className="text-right py-2 text-navy-600">Orders</th>
+                <th className="text-right py-2 text-navy-600">Total Spent</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {topCustomers.map((customer) => (
+                <tr key={customer.customer_id} className="border-b border-navy-200">
+                  <td className="py-2 text-navy-900">{customer.company_name}</td>
+                  <td className="text-right py-2 text-navy-900">{customer.total_orders}</td>
+                  <td className="text-right py-2 text-navy-900">
+                    {formatCurrency(customer.total_spent)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-navy-500">No customer data available.</p>
+      )}
     </div>
   );
 }
 
-function ProductReport({ data }: { data: any }) {
+function ProductReport({ data }: { data: Record<string, unknown> }) {
+  const topProducts =
+    (data.top_selling_products as Array<{
+      product_id: number;
+      product_name: string;
+      sku: string;
+      total_quantity_sold: number;
+      total_revenue: number;
+    }>) || [];
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4 text-navy-900">Product Performance Report</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
           <p className="text-sm text-navy-600">Total Products</p>
-          <p className="text-2xl font-bold text-navy-900">{data.total_products}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.total_products ?? 0)}</p>
         </div>
         <div className="bg-success-50 p-4 rounded-xl border border-success-100">
           <p className="text-sm text-navy-600">Active Products</p>
-          <p className="text-2xl font-bold text-navy-900">{data.active_products}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.active_products ?? 0)}</p>
         </div>
       </div>
 
       <h3 className="font-semibold mb-2 text-navy-900">Top Selling Products</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-navy-200">
-              <th className="text-left py-2 text-navy-600">Product</th>
-              <th className="text-left py-2 text-navy-600">SKU</th>
-              <th className="text-right py-2 text-navy-600">Quantity Sold</th>
-              <th className="text-right py-2 text-navy-600">Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.top_selling_products?.map((product: any) => (
-              <tr key={product.product_id} className="border-b border-navy-200">
-                <td className="py-2 text-navy-900">{product.product_name}</td>
-                <td className="py-2 text-navy-900">{product.sku}</td>
-                <td className="text-right py-2 text-navy-900">{product.total_quantity_sold}</td>
-                <td className="text-right py-2 text-navy-900">{formatCurrency(product.total_revenue)}</td>
+      {topProducts.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-navy-200">
+                <th className="text-left py-2 text-navy-600">Product</th>
+                <th className="text-left py-2 text-navy-600">SKU</th>
+                <th className="text-right py-2 text-navy-600">Quantity Sold</th>
+                <th className="text-right py-2 text-navy-600">Revenue</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {topProducts.map((product) => (
+                <tr key={product.product_id} className="border-b border-navy-200">
+                  <td className="py-2 text-navy-900">{product.product_name}</td>
+                  <td className="py-2 text-navy-900">{product.sku}</td>
+                  <td className="text-right py-2 text-navy-900">{product.total_quantity_sold}</td>
+                  <td className="text-right py-2 text-navy-900">
+                    {formatCurrency(product.total_revenue)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-navy-500">No product performance data available.</p>
+      )}
     </div>
   );
 }
 
-function InventoryReport({ data }: { data: any }) {
+function InventoryReport({ data }: { data: Record<string, unknown> }) {
+  const stockSummary =
+    (data.stock_summary as Array<{
+      product_id: number;
+      product_name: string;
+      sku: string;
+      quantity: number;
+      available_quantity: number;
+      value: number;
+    }>) || [];
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4 text-navy-900">Inventory Report</h2>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-primary-50 p-4 rounded-xl border border-primary-100">
           <p className="text-sm text-navy-600">Total Products</p>
-          <p className="text-2xl font-bold text-navy-900">{data.total_products}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.total_products ?? 0)}</p>
         </div>
         <div className="bg-warning-50 p-4 rounded-xl border border-warning-100">
           <p className="text-sm text-navy-600">Low Stock</p>
-          <p className="text-2xl font-bold text-navy-900">{data.low_stock_count}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.low_stock_count ?? 0)}</p>
         </div>
         <div className="bg-danger-50 p-4 rounded-xl border border-danger-100">
           <p className="text-sm text-navy-600">Out of Stock</p>
-          <p className="text-2xl font-bold text-navy-900">{data.out_of_stock_count}</p>
+          <p className="text-2xl font-bold text-navy-900">{Number(data.out_of_stock_count ?? 0)}</p>
         </div>
         <div className="bg-success-50 p-4 rounded-xl border border-success-100">
           <p className="text-sm text-navy-600">Total Value</p>
-          <p className="text-2xl font-bold text-navy-900">{formatCurrency(data.total_inventory_value)}</p>
+          <p className="text-2xl font-bold text-navy-900">
+            {formatCurrency(Number(data.total_inventory_value ?? 0))}
+          </p>
         </div>
       </div>
 
       <h3 className="font-semibold mb-2 text-navy-900">Stock Summary</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead>
-            <tr className="border-b border-navy-200">
-              <th className="text-left py-2 text-navy-600">Product</th>
-              <th className="text-left py-2 text-navy-600">SKU</th>
-              <th className="text-right py-2 text-navy-600">Quantity</th>
-              <th className="text-right py-2 text-navy-600">Available</th>
-              <th className="text-right py-2 text-navy-600">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.stock_summary?.map((item: any) => (
-              <tr key={item.product_id} className="border-b border-navy-200">
-                <td className="py-2 text-navy-900">{item.product_name}</td>
-                <td className="py-2 text-navy-900">{item.sku}</td>
-                <td className="text-right py-2 text-navy-900">{item.quantity}</td>
-                <td className="text-right py-2 text-navy-900">{item.available_quantity}</td>
-                <td className="text-right py-2 text-navy-900">{formatCurrency(item.value)}</td>
+      {stockSummary.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-navy-200">
+                <th className="text-left py-2 text-navy-600">Product</th>
+                <th className="text-left py-2 text-navy-600">SKU</th>
+                <th className="text-right py-2 text-navy-600">Quantity</th>
+                <th className="text-right py-2 text-navy-600">Available</th>
+                <th className="text-right py-2 text-navy-600">Value</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {stockSummary.map((item) => (
+                <tr key={item.product_id} className="border-b border-navy-200">
+                  <td className="py-2 text-navy-900">{item.product_name}</td>
+                  <td className="py-2 text-navy-900">{item.sku}</td>
+                  <td className="text-right py-2 text-navy-900">{item.quantity}</td>
+                  <td className="text-right py-2 text-navy-900">{item.available_quantity}</td>
+                  <td className="text-right py-2 text-navy-900">{formatCurrency(item.value)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-navy-500">No inventory records available.</p>
+      )}
     </div>
   );
 }
 
-// Icon Components
 function ReportsIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+      />
     </svg>
   );
 }
@@ -460,19 +485,20 @@ function ReportsSkeleton() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-8 bg-navy-200 rounded w-48 animate-pulse"></div>
-          <div className="h-4 bg-navy-200 rounded w-64 animate-pulse"></div>
+          <div className="h-8 bg-navy-200 rounded w-48 animate-pulse" />
+          <div className="h-4 bg-navy-200 rounded w-64 animate-pulse" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-4">
-        <div className="h-10 bg-navy-200 rounded animate-pulse"></div>
+      <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-4 space-y-4">
+        <div className="h-9 bg-navy-100 rounded animate-pulse" />
+        <div className="h-10 bg-navy-200 rounded animate-pulse" />
       </div>
 
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-6">
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 bg-navy-100 rounded-lg animate-pulse"></div>
+            <div key={i} className="h-16 bg-navy-100 rounded-lg animate-pulse" />
           ))}
         </div>
       </div>

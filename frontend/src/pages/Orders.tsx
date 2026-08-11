@@ -167,7 +167,11 @@ export default function Orders() {
   const totalOrders = stats ? safeNumber(stats.total_orders) : orders.length;
   const pendingOrders = stats ? safeNumber(stats.pending_orders) : orders.filter((o) => o.status === 'pending').length;
   const confirmedOrders = stats ? safeNumber(stats.confirmed_orders) : orders.filter((o) => o.status === 'confirmed').length;
-  const totalRevenue = stats ? safeNumber(stats.total_revenue) : orders.reduce((sum, order) => sum + order.total_amount, 0);
+  const totalRevenue = stats
+    ? safeNumber(stats.total_revenue)
+    : orders
+        .filter((o) => ['confirmed', 'processing', 'shipped', 'delivered'].includes(o.status))
+        .reduce((sum, order) => sum + order.total_amount, 0);
 
   if (loading) return <OrdersSkeleton />;
   if (error) {
@@ -211,11 +215,18 @@ export default function Orders() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total Orders" value={totalOrders} subtitle="All orders" icon={<OrdersIcon />} color="blue" />
-        <KPICard title="Pending" value={pendingOrders} subtitle="Awaiting action" icon={<ClockIcon />} color="amber" />
-        <KPICard title="Confirmed" value={confirmedOrders} subtitle="Processing" icon={<CheckIcon />} color="green" />
-        <KPICard title="Total Revenue" value={formatCurrency(totalRevenue)} subtitle="Order value" icon={<RevenueIcon />} color="purple" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
+        <KPICard title="Total Orders" value={totalOrders} subtitle="All orders" icon={<OrdersIcon className="w-6 h-6" />} color="blue" />
+        <KPICard title="Pending" value={pendingOrders} subtitle="Awaiting action" icon={<ClockIcon className="w-6 h-6" />} color="amber" />
+        <KPICard title="Confirmed" value={confirmedOrders} subtitle="Processing" icon={<CheckIcon className="w-6 h-6" />} color="green" />
+        <KPICard
+          title="Total Revenue"
+          value={formatCurrency(totalRevenue)}
+          subtitle="Confirmed orders only"
+          icon={<RevenueIcon className="w-6 h-6" />}
+          color="purple"
+          compactValue
+        />
       </div>
 
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-4">
@@ -260,8 +271,8 @@ export default function Orders() {
       </div>
 
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium overflow-hidden">
-        <div className="overflow-x-auto -mx-6 px-6 custom-scrollbar">
-          <table className="min-w-[1000px] divide-y divide-navy-100">
+        <div className="overflow-x-auto custom-scrollbar table-wrapper">
+          <table className="min-w-[1000px] w-full divide-y divide-navy-100">
             <thead className="bg-navy-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-600 uppercase tracking-wider">Order #</th>
@@ -383,6 +394,7 @@ function OrderFormModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     customer_id: order?.customer_id || 0,
     items: (order?.items?.map((item) => ({
@@ -451,6 +463,7 @@ function OrderFormModal({
           : await orderService.updateOrder(order!.id, payload);
 
       if (response.success) {
+        showToast(mode === 'create' ? 'Order created successfully' : 'Order updated successfully', 'success');
         onSave();
         onClose();
       } else {

@@ -332,10 +332,12 @@ export interface SalesReport {
   total_orders: number;
   total_revenue: number;
   average_order_value: number;
+  pending_order_value?: number;
   pending_orders: number;
   confirmed_orders: number;
   orders_by_status: Record<string, number>;
   revenue_by_month: Array<{ month: string; revenue: number }>;
+  sales_trend: Array<{ date: string; revenue: number; orders: number }>;
   sales_by_customer: Array<{
     customer_id: number;
     company_name: string;

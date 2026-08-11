@@ -17,7 +17,12 @@ describe('ReportingService', () => {
   describe('getSalesReport', () => {
     it('should return sales report with no filters', async () => {
       const mockStatsResult = {
-        rows: [{ total_orders: '100', total_revenue: '50000', average_order_value: '500' }],
+        rows: [{
+          total_orders: '100',
+          total_revenue: '50000',
+          average_order_value: '500',
+          pending_order_value: '5000',
+        }],
       };
       const mockStatusResult = {
         rows: [
@@ -34,12 +39,14 @@ describe('ReportingService', () => {
       };
       const mockCustomerSalesResult = { rows: [] };
       const mockProductSalesResult = { rows: [] };
+      const mockTrendResult = { rows: [] };
       mockPool.query
         .mockResolvedValueOnce(mockStatsResult)
         .mockResolvedValueOnce(mockStatusResult)
         .mockResolvedValueOnce(mockMonthlyResult)
         .mockResolvedValueOnce(mockCustomerSalesResult)
-        .mockResolvedValueOnce(mockProductSalesResult);
+        .mockResolvedValueOnce(mockProductSalesResult)
+        .mockResolvedValueOnce(mockTrendResult);
 
       const result = await ReportingService.getSalesReport();
 
@@ -47,6 +54,7 @@ describe('ReportingService', () => {
         total_orders: 100,
         total_revenue: 50000,
         average_order_value: 500,
+        pending_order_value: 5000,
         pending_orders: 10,
         confirmed_orders: 50,
         orders_by_status: { pending: 10, confirmed: 50, delivered: 40 },
@@ -54,15 +62,17 @@ describe('ReportingService', () => {
           { month: '2024-01', revenue: 10000 },
           { month: '2024-02', revenue: 15000 },
         ],
+        sales_trend: [],
         sales_by_customer: [],
         sales_by_product: [],
       });
-      expect(mockPool.query).toHaveBeenCalledTimes(5);
+      expect(mockPool.query).toHaveBeenCalledTimes(6);
+      expect(mockPool.query.mock.calls[0][0]).toContain("status IN ('confirmed'");
     });
 
     it('should return sales report with date filters', async () => {
       const mockStatsResult = {
-        rows: [{ total_orders: '50', total_revenue: '25000', average_order_value: '500' }],
+        rows: [{ total_orders: '50', total_revenue: '25000', average_order_value: '500', pending_order_value: '0' }],
       };
       const mockStatusResult = {
         rows: [{ status: 'confirmed', count: '30' }, { status: 'delivered', count: '20' }],
@@ -75,6 +85,7 @@ describe('ReportingService', () => {
         .mockResolvedValueOnce(mockStatusResult)
         .mockResolvedValueOnce(mockMonthlyResult)
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 
       const filters = {
@@ -85,6 +96,7 @@ describe('ReportingService', () => {
       const result = await ReportingService.getSalesReport(filters);
 
       expect(result.total_orders).toBe(50);
+      expect(result.sales_trend).toEqual([]);
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('order_date >='),
         expect.arrayContaining([expect.any(Date), expect.any(Date)])
@@ -93,7 +105,7 @@ describe('ReportingService', () => {
 
     it('should return sales report with status filter', async () => {
       const mockStatsResult = {
-        rows: [{ total_orders: '30', total_revenue: '15000', average_order_value: '500' }],
+        rows: [{ total_orders: '30', total_revenue: '15000', average_order_value: '500', pending_order_value: '0' }],
       };
       const mockStatusResult = {
         rows: [{ status: 'confirmed', count: '30' }],
@@ -105,6 +117,7 @@ describe('ReportingService', () => {
         .mockResolvedValueOnce(mockStatsResult)
         .mockResolvedValueOnce(mockStatusResult)
         .mockResolvedValueOnce(mockMonthlyResult)
+        .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [] });
 

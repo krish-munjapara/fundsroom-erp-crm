@@ -1,5 +1,6 @@
 import { pool } from '../config/database';
 import { DashboardStats, RecentOrder, RecentActivity } from '../types';
+import { REVENUE_ORDER_STATUS_SQL, REVENUE_ORDER_STATUS_O_SQL } from '../utils/orderStatus';
 
 export class DashboardService {
   private static buildDateFilter(period: string, startDate?: string, endDate?: string): { clause: string; values: string[] } {
@@ -35,8 +36,9 @@ export class DashboardService {
         (SELECT COUNT(*) FROM customers WHERE is_active = true) as total_customers,
         (SELECT COUNT(*) FROM products WHERE is_active = true) as total_products,
         (SELECT COUNT(*) FROM orders o WHERE 1=1 ${useFilter ? dateFilter.replace(/o\./g, 'o.') : ''}) as total_orders,
-        COALESCE((SELECT SUM(total_amount) FROM orders o WHERE status != 'cancelled' ${useFilter ? dateFilter : ''}), 0) as total_sales,
-        (SELECT COUNT(*) FROM products p WHERE p.is_active = true AND COALESCE(p.current_stock, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)) as low_stock_count,
+        COALESCE((SELECT SUM(total_amount) FROM orders o WHERE ${REVENUE_ORDER_STATUS_SQL} ${useFilter ? dateFilter : ''}), 0) as total_sales,
+        (SELECT COUNT(*) FROM products p WHERE p.is_active = true AND COALESCE(p.current_stock, 0) > 0 AND COALESCE(p.current_stock, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)) as low_stock_count,
+        (SELECT COUNT(*) FROM products p WHERE p.is_active = true AND COALESCE(p.current_stock, 0) = 0) as out_of_stock_count,
         (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'confirmed') as confirmed_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'delivered') as delivered_orders,
@@ -101,49 +103,125 @@ export class DashboardService {
   }
 
   static async getSalesTrend(period: string = 'month', startDate?: string, endDate?: string): Promise<any[]> {
-    let groupBy = 'DATE(created_at)';
-    let limit = '30';
-    let dateCondition = `created_at >= CURRENT_DATE - INTERVAL '30 days'`;
-
     if (startDate && endDate) {
-      dateCondition = `created_at >= '${startDate}'::date AND created_at < ('${endDate}'::date + INTERVAL '1 day')`;
-      groupBy = 'DATE(created_at)';
-      limit = '90';
-    } else if (period === 'today') {
-      dateCondition = `DATE(created_at) = CURRENT_DATE`;
-      limit = '1';
-    } else if (period === 'week') {
-      groupBy = 'DATE(created_at)';
-      limit = '7';
-      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '7 days'`;
-    } else if (period === '3months') {
-      groupBy = 'DATE_TRUNC(\'week\', created_at)';
-      limit = '12';
-      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '3 months'`;
-    } else if (period === '6months') {
-      groupBy = 'DATE_TRUNC(\'month\', created_at)';
-      limit = '6';
-      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '6 months'`;
-    } else if (period === 'year') {
-      groupBy = 'DATE_TRUNC(\'month\', created_at)';
-      limit = '12';
-      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '12 months'`;
+      const granularity = this.resolveGranularityForRange(startDate, endDate);
+      return this.querySalesTrendSeries(granularity, startDate, endDate, [startDate, endDate]);
     }
 
+    switch (period) {
+      case 'today':
+        return this.querySalesTrendSeries(
+          'hour',
+          `date_trunc('day', CURRENT_DATE)`,
+          `date_trunc('day', CURRENT_DATE) + INTERVAL '23 hours'`
+        );
+      case 'week':
+        return this.querySalesTrendSeries('day', `CURRENT_DATE - INTERVAL '6 days'`, 'CURRENT_DATE');
+      case '3months':
+        return this.querySalesTrendSeries('week', `date_trunc('week', CURRENT_DATE - INTERVAL '3 months')::date`, `date_trunc('week', CURRENT_DATE)::date`);
+      case '6months':
+        return this.querySalesTrendSeries('month', `date_trunc('month', CURRENT_DATE - INTERVAL '5 months')::date`, `date_trunc('month', CURRENT_DATE)::date`);
+      case 'year':
+        return this.querySalesTrendSeries('month', `date_trunc('month', CURRENT_DATE - INTERVAL '11 months')::date`, `date_trunc('month', CURRENT_DATE)::date`);
+      case 'month':
+      default:
+        return this.querySalesTrendSeries('day', `CURRENT_DATE - INTERVAL '29 days'`, 'CURRENT_DATE');
+    }
+  }
+
+  private static resolveGranularityForRange(startDate: string, endDate: string): 'hour' | 'day' | 'week' | 'month' {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+
+    if (days <= 1) return 'hour';
+    if (days <= 31) return 'day';
+    if (days <= 90) return 'week';
+    return 'month';
+  }
+
+  private static async querySalesTrendSeries(
+    granularity: 'hour' | 'day' | 'week' | 'month',
+    startExpr: string,
+    endExpr: string,
+    paramDates?: [string, string]
+  ): Promise<any[]> {
+    const interval =
+      granularity === 'hour' ? '1 hour' : granularity === 'day' ? '1 day' : granularity === 'week' ? '1 week' : '1 month';
+    const bucketExpr =
+      granularity === 'hour'
+        ? "date_trunc('hour', o.created_at)"
+        : granularity === 'day'
+          ? 'DATE(o.created_at)'
+          : granularity === 'week'
+            ? "date_trunc('week', o.created_at)::date"
+            : "date_trunc('month', o.created_at)::date";
+    const dateFormat =
+      granularity === 'hour' ? `YYYY-MM-DD"T"HH24:00:00` : 'YYYY-MM-DD';
+
+    let startBound: string;
+    let endBound: string;
+    let rangeFilter: string;
+    const values: string[] = [];
+
+    if (paramDates) {
+      startBound = granularity === 'hour' ? `$1::date` : '$1::date';
+      endBound = granularity === 'hour'
+        ? `($2::date + INTERVAL '1 day' - INTERVAL '1 hour')`
+        : '$2::date';
+      rangeFilter = `o.created_at >= $1::date AND o.created_at < ($2::date + INTERVAL '1 day')`;
+      values.push(paramDates[0], paramDates[1]);
+    } else {
+      startBound = startExpr;
+      endBound = endExpr;
+      if (granularity === 'hour') {
+        rangeFilter = `o.created_at >= (${startExpr}) AND o.created_at < (${startExpr}) + INTERVAL '1 day'`;
+      } else {
+        rangeFilter = `o.created_at >= (${startExpr})::date AND o.created_at < (${endExpr})::date + INTERVAL '1 day'`;
+      }
+    }
+
+    const seriesCast = granularity === 'hour' ? '::timestamp' : '::date';
+
     const query = `
+      WITH date_series AS (
+        SELECT generate_series(
+          (${startBound})${seriesCast},
+          (${endBound})${seriesCast},
+          '${interval}'::interval
+        ) AS bucket_date
+      ),
+      revenue_data AS (
+        SELECT
+          ${bucketExpr} AS bucket_date,
+          COALESCE(SUM(o.total_amount), 0) AS revenue
+        FROM orders o
+        WHERE ${REVENUE_ORDER_STATUS_O_SQL}
+          AND ${rangeFilter}
+        GROUP BY ${bucketExpr}
+      ),
+      order_data AS (
+        SELECT
+          ${bucketExpr} AS bucket_date,
+          COUNT(*)::int AS orders
+        FROM orders o
+        WHERE ${rangeFilter}
+        GROUP BY ${bucketExpr}
+      )
       SELECT
-        ${groupBy} as date,
-        COALESCE(SUM(total_amount), 0) as revenue,
-        COUNT(*) as orders
-      FROM orders
-      WHERE status != 'cancelled'
-        AND ${dateCondition}
-      GROUP BY ${groupBy}
-      ORDER BY date ASC
-      LIMIT ${limit}
+        to_char(ds.bucket_date, '${dateFormat}') AS date,
+        COALESCE(r.revenue, 0)::float AS revenue,
+        COALESCE(ord.orders, 0)::int AS orders
+      FROM date_series ds
+      LEFT JOIN revenue_data r ON ds.bucket_date = r.bucket_date
+      LEFT JOIN order_data ord ON ds.bucket_date = ord.bucket_date
+      ORDER BY ds.bucket_date ASC
     `;
 
-    const result = await pool.query(query);
+    const result = values.length > 0
+      ? await pool.query(query, values)
+      : await pool.query(query);
+
     return result.rows;
   }
 
@@ -157,7 +235,7 @@ export class DashboardService {
         COALESCE(SUM(oi.quantity * oi.unit_price), 0) as revenue
       FROM products p
       LEFT JOIN order_items oi ON p.id = oi.product_id
-      LEFT JOIN orders o ON oi.order_id = o.id AND o.status != 'cancelled'
+      LEFT JOIN orders o ON oi.order_id = o.id AND o.status IN ('confirmed', 'processing', 'shipped', 'delivered')
       WHERE p.is_active = true
       GROUP BY p.id, p.name, p.sku
       ORDER BY revenue DESC
@@ -179,7 +257,8 @@ export class DashboardService {
         GREATEST(COALESCE(p.minimum_stock, p.reorder_level, 10) - COALESCE(p.current_stock, i.available_quantity, 0), 0) as needed
       FROM products p
       LEFT JOIN inventory i ON i.product_id = p.id
-      WHERE COALESCE(p.current_stock, i.available_quantity, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)
+      WHERE COALESCE(p.current_stock, i.available_quantity, 0) > 0
+        AND COALESCE(p.current_stock, i.available_quantity, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)
         AND p.is_active = true
       ORDER BY needed DESC
       LIMIT $1

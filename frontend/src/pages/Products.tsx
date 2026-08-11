@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import { productService } from '../services';
 import type { Product, CreateProductData, UpdateProductData } from '../services';
 import { formatCurrency } from '../utils/formatters';
-import { KPICard, StatusBadge, EmptyState } from '../components/ui';
+import { KPICard, StatusBadge, EmptyState, StockStatusBadge } from '../components/ui';
 import { usePermissions, useSearch, useToast } from '../context';
+import ProductModal, { type ProductSaveResult } from '../components/products/ProductModal';
+import { mapProductApiError } from '../utils/productFormValidation';
+import {
+  mapStockAdjustmentApiError,
+  parsePositiveQuantityInput,
+  validateStockAdjustment,
+  type StockAdjustmentErrors,
+} from '../utils/stockAdjustmentValidation';
 
 export default function Products() {
   const permissions = usePermissions();
@@ -59,18 +67,22 @@ export default function Products() {
   };
 
 
-  const handleCreate = async (data: CreateProductData) => {
+  const handleCreate = async (data: CreateProductData): Promise<ProductSaveResult> => {
     try {
       const response = await productService.createProduct(data);
       if (response.success) {
         setShowModal(false);
         showToast('Product created successfully', 'success');
         loadProducts();
-      } else {
-        setError(response.message || 'Failed to create product');
+        return { success: true };
       }
-    } catch (err) {
-      setError('An error occurred while creating product');
+      const mapped = mapProductApiError(response.message);
+      return { success: false, message: mapped.message, field: mapped.field };
+    } catch {
+      return {
+        success: false,
+        message: 'Unable to save the product. Please check the entered details and try again.',
+      };
     }
   };
 
@@ -93,6 +105,7 @@ export default function Products() {
       const response = await productService.updateProduct(selectedProduct.id, data);
       if (response.success) {
         setShowEditModal(false);
+        showToast('Product updated successfully', 'success');
         loadProducts();
       } else {
         setError(response.message || 'Failed to update product');
@@ -109,17 +122,33 @@ export default function Products() {
   };
 
   const handleStockAdjust = async (data: { quantity: number; movement_type: 'in' | 'out'; notes: string }) => {
-    if (!selectedProduct) return;
+    if (!selectedProduct) {
+      return { success: false as const, message: 'No product selected.' };
+    }
     try {
       const response = await productService.adjustStock(selectedProduct.id, data);
       if (response.success) {
         setShowStockAdjustModal(false);
+        showToast(
+          data.movement_type === 'in' ? 'Stock added successfully' : 'Stock removed successfully',
+          'success'
+        );
         loadProducts();
-      } else {
-        setError(response.message || 'Failed to adjust stock');
+        return { success: true as const };
       }
-    } catch (err) {
-      setError('An error occurred while adjusting stock');
+      const message = mapStockAdjustmentApiError(response.message);
+      return {
+        success: false as const,
+        message,
+        field: message.toLowerCase().includes('insufficient') || message.toLowerCase().includes('available')
+          ? ('quantity' as const)
+          : undefined,
+      };
+    } catch {
+      return {
+        success: false as const,
+        message: 'Unable to save the stock movement. Please try again.',
+      };
     }
   };
 
@@ -390,8 +419,8 @@ export default function Products() {
 
       {/* Products Table */}
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1300px] divide-y divide-navy-100">
+        <div className="table-wrapper">
+          <table className="min-w-[900px] w-full divide-y divide-navy-100 lg:min-w-full">
             <thead className="bg-navy-50">
               <tr>
                 <th 
@@ -450,7 +479,10 @@ export default function Products() {
                     <span className="text-sm font-semibold text-navy-900">{formatCurrency(product.unit_price)}</span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-center">
-                    <span className="text-sm font-semibold text-navy-900">{product.current_stock}</span>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-sm font-semibold text-navy-900">{product.current_stock}</span>
+                      <StockStatusBadge currentStock={product.current_stock} minimumStock={product.minimum_stock} />
+                    </div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-center">
                     <span className="text-sm text-navy-700">{product.minimum_stock}</span>
@@ -823,19 +855,78 @@ function ProductDetailsModal({ product, onClose, onEdit }: { product: Product; o
   );
 }
 
-function StockAdjustModal({ product, onClose, onAdjust }: { product: Product; onClose: () => void; onAdjust: (data: { quantity: number; movement_type: 'in' | 'out'; notes: string }) => void }) {
-  const [quantity, setQuantity] = useState(0);
+function StockAdjustModal({
+  product,
+  onClose,
+  onAdjust,
+}: {
+  product: Product;
+  onClose: () => void;
+  onAdjust: (data: { quantity: number; movement_type: 'in' | 'out'; notes: string }) => Promise<
+    { success: true } | { success: false; message: string; field?: 'quantity' | 'notes' | 'submit' }
+  >;
+}) {
+  const [quantity, setQuantity] = useState<number | ''>(1);
   const [movementType, setMovementType] = useState<'in' | 'out'>('in');
   const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<StockAdjustmentErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const currentStock = Number(product.current_stock ?? 0);
+  const numericQuantity = quantity === '' ? 0 : quantity;
+  const newStock = movementType === 'in' ? currentStock + numericQuantity : currentStock - numericQuantity;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantity === 0 || !notes.trim()) return;
-    onAdjust({ quantity, movement_type: movementType, notes: notes.trim() });
+
+    const validationErrors = validateStockAdjustment({
+      quantity: numericQuantity,
+      movement_type: movementType,
+      notes,
+      availableStock: movementType === 'out' ? currentStock : undefined,
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrors({});
+
+    try {
+      const result = await onAdjust({
+        quantity: numericQuantity,
+        movement_type: movementType,
+        notes: notes.trim(),
+      });
+
+      if (!result.success) {
+        if (result.field) {
+          setErrors({ [result.field]: result.message });
+        } else {
+          setErrors({ submit: result.message });
+        }
+      }
+    } catch {
+      setErrors({ submit: 'Unable to save the stock movement. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const currentStock = product.current_stock;
-  const newStock = movementType === 'in' ? currentStock + quantity : currentStock - quantity;
+  const inputClass = (hasError: boolean) =>
+    `w-full border rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors ${
+      hasError ? 'border-danger-300' : 'border-navy-300'
+    }`;
 
   return (
     <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -845,257 +936,114 @@ function StockAdjustModal({ product, onClose, onAdjust }: { product: Product; on
           <p className="text-sm text-navy-500 mt-1">{product.name} ({product.sku})</p>
         </div>
         <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="product-stock-adjust-form" onSubmit={handleSubmit} className="space-y-4">
+            {errors.submit && (
+              <div className="rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
+                {errors.submit}
+              </div>
+            )}
             <div className="bg-navy-50 rounded-lg p-4 mb-4">
               <p className="text-xs text-navy-500 mb-1">Current Stock</p>
               <p className="text-2xl font-bold text-navy-900">{currentStock}</p>
             </div>
             <div className="bg-navy-100 rounded-lg p-4 mb-4">
               <p className="text-xs text-navy-600 mb-1">New Stock Preview</p>
-              <p className={`text-2xl font-bold ${newStock < 0 ? 'text-danger-600' : 'text-navy-900'}`}>{newStock < 0 ? 'Insufficient' : newStock}</p>
+              <p className={`text-2xl font-bold ${newStock < 0 ? 'text-danger-600' : 'text-navy-900'}`}>
+                {newStock < 0 ? 'Insufficient' : newStock}
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Adjustment Type</label>
+              <label htmlFor="product-adjust-movement-type" className="block text-sm font-medium text-navy-700 mb-1">
+                Adjustment Type
+              </label>
               <select
+                id="product-adjust-movement-type"
+                name="movement_type"
                 value={movementType}
-                onChange={(e) => setMovementType(e.target.value as 'in' | 'out')}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                onChange={(e) => {
+                  setMovementType(e.target.value as 'in' | 'out');
+                  setErrors((prev) => {
+                    if (!prev.quantity) return prev;
+                    const next = { ...prev };
+                    delete next.quantity;
+                    return next;
+                  });
+                }}
+                className={inputClass(false)}
               >
                 <option value="in">Stock In (Add)</option>
                 <option value="out">Stock Out (Remove)</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Quantity</label>
+              <label htmlFor="product-adjust-quantity" className="block text-sm font-medium text-navy-700 mb-1">
+                Quantity
+              </label>
               <input
+                id="product-adjust-quantity"
+                name="quantity"
                 type="number"
-                required
+                min={1}
+                step={1}
                 value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                onChange={(e) => {
+                  setQuantity(parsePositiveQuantityInput(e.target.value));
+                  setErrors((prev) => {
+                    if (!prev.quantity) return prev;
+                    const next = { ...prev };
+                    delete next.quantity;
+                    return next;
+                  });
+                }}
+                className={inputClass(!!errors.quantity)}
                 placeholder="Enter quantity"
               />
+              {errors.quantity && <p className="text-danger-600 text-xs mt-1">{errors.quantity}</p>}
+              {movementType === 'out' && (
+                <p className="text-xs text-navy-500 mt-1">Available stock: {currentStock} units</p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Reason / Notes</label>
+              <label htmlFor="product-adjust-notes" className="block text-sm font-medium text-navy-700 mb-1">
+                Reason / Notes
+              </label>
               <textarea
+                id="product-adjust-notes"
+                name="notes"
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  setErrors((prev) => {
+                    if (!prev.notes) return prev;
+                    const next = { ...prev };
+                    delete next.notes;
+                    return next;
+                  });
+                }}
                 rows={3}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className={inputClass(!!errors.notes)}
                 placeholder="e.g., New purchase, Damaged goods, Correction..."
               />
+              {errors.notes && <p className="text-danger-600 text-xs mt-1">{errors.notes}</p>}
             </div>
             <div className="flex justify-end space-x-3 pt-4">
-              <button type="button" onClick={onClose} className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Adjust Stock</button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors disabled:opacity-60 disabled:cursor-not-allowed min-w-[120px]"
+              >
+                {isSubmitting ? 'Saving...' : 'Adjust Stock'}
+              </button>
             </div>
           </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductModal({ onClose, onSave }: { onClose: () => void; onSave: (data: CreateProductData) => void }) {
-  const [formData, setFormData] = useState<CreateProductData>({
-    sku: '',
-    name: '',
-    description: '',
-    category: '',
-    unit_price: 0,
-    current_stock: 0,
-    minimum_stock: 10,
-    location: '',
-    warehouse: '',
-    is_active: true,
-  });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.sku.trim()) {
-      newErrors.sku = 'SKU is required';
-    }
-    if (!formData.name.trim()) {
-      newErrors.name = 'Product name is required';
-    }
-    if (!formData.category.trim()) {
-      newErrors.category = 'Category is required';
-    }
-    if (formData.unit_price < 0) {
-      newErrors.unit_price = 'Unit price cannot be negative';
-    }
-    if (formData.current_stock < 0) {
-      newErrors.current_stock = 'Current stock cannot be negative';
-    }
-    if (formData.minimum_stock < 0) {
-      newErrors.minimum_stock = 'Minimum stock cannot be negative';
-    }
-    if (!formData.location.trim()) {
-      newErrors.location = 'Location is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-
-    const cleanedData: CreateProductData = {
-      sku: formData.sku.trim(),
-      name: formData.name.trim(),
-      description: (formData.description || '').trim() || undefined,
-      category: formData.category.trim(),
-      unit_price: Number(formData.unit_price),
-      current_stock: Number(formData.current_stock),
-      minimum_stock: Number(formData.minimum_stock),
-      location: formData.location.trim(),
-      warehouse: (formData.warehouse || '').trim() || undefined,
-      is_active: formData.is_active,
-    };
-    onSave(cleanedData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-lg-premium border border-navy-200 flex flex-col">
-        <div className="p-6 border-b border-navy-200">
-          <h2 className="text-xl font-semibold text-navy-900">Add Product</h2>
-          <p className="text-sm text-navy-500 mt-1">Enter product details below</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div>
-              <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">SKU *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.sku && <p className="text-danger-600 text-xs mt-1">{errors.sku}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Product Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.name && <p className="text-danger-600 text-xs mt-1">{errors.name}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Category *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.category && <p className="text-danger-600 text-xs mt-1">{errors.category}</p>}
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Pricing */}
-            <div>
-              <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Pricing</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Unit Price *</label>
-                  <input
-                    type="number"
-                    required
-                    step="0.01"
-                    min="0"
-                    value={formData.unit_price}
-                    onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.unit_price && <p className="text-danger-600 text-xs mt-1">{errors.unit_price}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Inventory */}
-            <div>
-              <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Inventory</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Current Stock *</label>
-                  <input
-                    type="number"
-                    required
-                    step="1"
-                    min="0"
-                    value={formData.current_stock}
-                    onChange={(e) => setFormData({ ...formData, current_stock: parseInt(e.target.value) || 0 })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.current_stock && <p className="text-danger-600 text-xs mt-1">{errors.current_stock}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Minimum Stock Alert Quantity *</label>
-                  <input
-                    type="number"
-                    required
-                    step="1"
-                    min="0"
-                    value={formData.minimum_stock}
-                    onChange={(e) => setFormData({ ...formData, minimum_stock: parseInt(e.target.value) || 0 })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.minimum_stock && <p className="text-danger-600 text-xs mt-1">{errors.minimum_stock}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Location *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                  {errors.location && <p className="text-danger-600 text-xs mt-1">{errors.location}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy-700 mb-1">Warehouse (Optional)</label>
-                  <input
-                    type="text"
-                    value={formData.warehouse}
-                    onChange={(e) => setFormData({ ...formData, warehouse: e.target.value })}
-                    className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors">Cancel</button>
-          <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Save Product</button>
         </div>
       </div>
     </div>

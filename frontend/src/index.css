@@ -2,8 +2,130 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure proper text color for light theme */
-body {
-  color: #0f172a;
-  background-color: #f8fafc;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  body {
+    color: #0f172a;
+    background-color: #f8fafc;
+  }
+}
+
+@layer components {
+  /*
+   * Single source of truth for sidebar widths (matches original w-64 / w-16).
+   * Sidebar panel, main offset, and toggle position all use these variables.
+   */
+  .app-shell {
+    --sidebar-width-expanded: 256px;
+    --sidebar-width-collapsed: 64px;
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    width: var(--sidebar-width-expanded);
+    overflow: visible;
+    transition: width 0.3s ease;
+  }
+
+  .app-shell[data-sidebar-collapsed='true'] .sidebar-panel {
+    width: var(--sidebar-width-collapsed);
+  }
+
+  /* Main column: flush against sidebar — no padding-left gap */
+  .app-main {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--sidebar-width-expanded);
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    transition: left 0.3s ease;
+  }
+
+  .app-shell[data-sidebar-collapsed='true'] .app-main {
+    left: var(--sidebar-width-collapsed);
+  }
+
+  .app-main-scroll {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* Collapse toggle: fixed to viewport, anchored to sidebar right edge */
+  .sidebar-toggle {
+    position: fixed;
+    z-index: 100;
+    top: 5rem;
+    left: calc(var(--sidebar-width-expanded) - 12px);
+    display: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    transition: left 0.3s ease;
+    cursor: pointer;
+  }
+
+  .sidebar-toggle:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .app-shell[data-sidebar-collapsed='true'] .sidebar-toggle {
+    left: calc(var(--sidebar-width-collapsed) - 12px);
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar-toggle {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 1023px) {
+    .app-main {
+      left: 0 !important;
+    }
+  }
+
+  .table-wrapper {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
 }

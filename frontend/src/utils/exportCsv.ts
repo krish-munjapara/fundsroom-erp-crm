@@ -27,31 +27,42 @@ export function buildReportCsv(reportType: string, data: Record<string, unknown>
 
   if (reportType === 'sales') {
     rows.push(
-      ['Total Sales', Number(data.total_sales ?? 0)],
       ['Total Orders', Number(data.total_orders ?? 0)],
+      ['Confirmed Revenue', Number(data.total_revenue ?? 0)],
+      ['Pending Order Value', Number(data.pending_order_value ?? 0)],
+      ['Avg Confirmed Order Value', Number(data.average_order_value ?? 0)],
       ['Pending Orders', Number(data.pending_orders ?? 0)],
       ['Confirmed Orders', Number(data.confirmed_orders ?? 0)],
       []
     );
 
-    const byDate = (data.sales_by_date as Array<{ date: string; total_sales: number }>) || [];
-    if (byDate.length) {
-      rows.push(['Date', 'Sales']);
-      byDate.forEach((item) => rows.push([item.date, item.total_sales]));
+    const byMonth = (data.revenue_by_month as Array<{ month: string; revenue: number }>) || [];
+    if (byMonth.length) {
+      rows.push(['Month', 'Confirmed Revenue']);
+      byMonth.forEach((item) => rows.push([item.month, item.revenue]));
       rows.push([]);
     }
 
-    const byCustomer = (data.sales_by_customer as Array<{ customer_name: string; total_sales: number }>) || [];
+    const trend = (data.sales_trend as Array<{ date: string; revenue: number; orders: number }>) || [];
+    if (trend.length) {
+      rows.push(['Date', 'Confirmed Revenue', 'Orders']);
+      trend.forEach((item) => rows.push([item.date, item.revenue, item.orders]));
+      rows.push([]);
+    }
+
+    const byCustomer =
+      (data.sales_by_customer as Array<{ company_name: string; total_revenue: number; total_orders: number }>) || [];
     if (byCustomer.length) {
-      rows.push(['Customer', 'Sales']);
-      byCustomer.forEach((item) => rows.push([item.customer_name, item.total_sales]));
+      rows.push(['Customer', 'Orders', 'Confirmed Revenue']);
+      byCustomer.forEach((item) => rows.push([item.company_name, item.total_orders, item.total_revenue]));
       rows.push([]);
     }
 
-    const byProduct = (data.sales_by_product as Array<{ product_name: string; total_sales: number }>) || [];
+    const byProduct =
+      (data.sales_by_product as Array<{ product_name: string; total_revenue: number; total_quantity: number }>) || [];
     if (byProduct.length) {
-      rows.push(['Product', 'Sales']);
-      byProduct.forEach((item) => rows.push([item.product_name, item.total_sales]));
+      rows.push(['Product', 'Quantity Sold', 'Confirmed Revenue']);
+      byProduct.forEach((item) => rows.push([item.product_name, item.total_quantity, item.total_revenue]));
     }
   }
 

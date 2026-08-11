@@ -5,6 +5,7 @@ import type { Order } from '../services';
 import { KPICard } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { usePermissions, useSearch, useToast } from '../context';
+import CustomerModal, { type CustomerSaveResult } from '../components/customers/CustomerModal';
 
 export default function Customers() {
   const permissions = usePermissions();
@@ -128,33 +129,34 @@ export default function Customers() {
     }
   };
 
-  const handleCreate = async (data: CreateCustomerData) => {
+  const handleCreate = async (data: CreateCustomerData): Promise<CustomerSaveResult> => {
     try {
       const response = await customerService.createCustomer(data);
       if (response.success) {
         setShowModal(false);
         showToast('Customer created successfully', 'success');
         loadCustomers();
-      } else {
-        setError(response.message || 'Failed to create customer');
+        return { success: true };
       }
-    } catch (err) {
-      setError('An error occurred while creating customer');
+      return { success: false, message: response.message || 'Failed to create customer' };
+    } catch {
+      return { success: false, message: 'An error occurred while creating customer' };
     }
   };
 
-  const handleUpdate = async (id: number, data: CreateCustomerData) => {
+  const handleUpdate = async (id: number, data: CreateCustomerData): Promise<CustomerSaveResult> => {
     try {
       const response = await customerService.updateCustomer(id, data);
       if (response.success) {
         setShowModal(false);
         setEditingCustomer(null);
+        showToast('Customer updated successfully', 'success');
         loadCustomers();
-      } else {
-        setError(response.message || 'Failed to update customer');
+        return { success: true };
       }
-    } catch (err) {
-      setError('An error occurred while updating customer');
+      return { success: false, message: response.message || 'Failed to update customer' };
+    } catch {
+      return { success: false, message: 'An error occurred while updating customer' };
     }
   };
 
@@ -309,7 +311,7 @@ export default function Customers() {
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -317,7 +319,7 @@ export default function Customers() {
                 placeholder="Search customers by company, contact, email or phone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-navy-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all focus:shadow-sm"
+                className="w-full pl-10 pr-4 py-2.5 border border-navy-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all focus:shadow-sm"
               />
             </div>
           </div>
@@ -325,7 +327,7 @@ export default function Customers() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
-              className="px-4 py-2.5 border border-navy-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all focus:shadow-sm"
+              className="px-4 py-2.5 border border-navy-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all focus:shadow-sm"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
@@ -392,8 +394,8 @@ export default function Customers() {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="text-xs font-semibold text-indigo-600">
+                      <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                        <span className="text-xs font-semibold text-primary-600">
                           {customer.company_name.split(' ').map(word => word[0]).join('').substring(0, 2).toUpperCase()}
                         </span>
                       </div>
@@ -430,7 +432,7 @@ export default function Customers() {
                           e.stopPropagation();
                           setActionMenuOpen(actionMenuOpen === customer.id ? null : customer.id);
                         }}
-                        className="p-2 text-navy-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        className="p-2 text-navy-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 012 0zm0 7a1 1 0 110-2 1 1 0 012 0zm0 7a1 1 0 110-2 1 1 0 012 0z" />
@@ -624,246 +626,6 @@ export default function Customers() {
           }}
         />
       )}
-    </div>
-  );
-}
-
-function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onSave: (data: CreateCustomerData) => void; customer?: Customer | null }) {
-  const [formData, setFormData] = useState<CreateCustomerData>({
-    company_name: customer?.company_name || '',
-    contact_person: customer?.contact_person || '',
-    email: customer?.email || '',
-    phone: customer?.phone || '',
-    address: customer?.address || '',
-    city: customer?.city || '',
-    state: customer?.state || '',
-    postal_code: customer?.postal_code || '',
-    country: customer?.country || 'India',
-    tax_id: customer?.tax_id || '',
-    credit_limit: customer?.credit_limit || 0,
-    notes: customer?.notes || '',
-    customer_type: (customer?.customer_type as CreateCustomerData['customer_type']) || 'retail',
-    status: (customer?.status as CreateCustomerData['status']) || (customer?.is_active === false ? 'inactive' : 'active'),
-    follow_up_date: customer?.follow_up_date ? customer.follow_up_date.split('T')[0] : '',
-    is_active: customer?.is_active !== undefined ? customer.is_active : true,
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Convert empty strings to undefined for optional fields
-    const cleanedData: CreateCustomerData = {
-      company_name: formData.company_name,
-      contact_person: formData.contact_person,
-      email: formData.email,
-      phone: formData.phone || undefined,
-      address: formData.address || undefined,
-      city: formData.city || undefined,
-      state: formData.state || undefined,
-      postal_code: formData.postal_code || undefined,
-      country: formData.country || undefined,
-      tax_id: formData.tax_id || undefined,
-      credit_limit: formData.credit_limit || undefined,
-      notes: formData.notes || undefined,
-      customer_type: formData.customer_type,
-      status: formData.status,
-      follow_up_date: formData.follow_up_date || undefined,
-      is_active: formData.status !== 'inactive',
-    };
-    onSave(cleanedData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-lg-premium border border-navy-200 max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-navy-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-navy-900">{customer ? 'Edit Customer' : 'Add Customer'}</h2>
-              <p className="text-sm text-navy-500 mt-1">{customer ? 'Update customer information' : 'Add a new customer to your database'}</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-navy-400 hover:text-navy-600 hover:bg-navy-100 rounded-lg transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <form id="customer-form" onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Company Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Contact Person *</label>
-              <input
-                type="text"
-                required
-                value={formData.contact_person}
-                onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Phone</label>
-              <input
-                type="text"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Address</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">City</label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">State</label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Postal Code</label>
-              <input
-                type="text"
-                value={formData.postal_code}
-                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Country</label>
-              <input
-                type="text"
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Tax ID</label>
-              <input
-                type="text"
-                value={formData.tax_id}
-                onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Credit Limit</label>
-            <input
-              type="number"
-              value={formData.credit_limit}
-              onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-              className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Customer Type</label>
-              <select
-                value={formData.customer_type || 'retail'}
-                onChange={(e) => setFormData({ ...formData, customer_type: e.target.value as CreateCustomerData['customer_type'] })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              >
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="distributor">Distributor</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Status</label>
-              <select
-                value={formData.status || 'active'}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as CreateCustomerData['status'] })}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              >
-                <option value="lead">Lead</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Follow-up Date</label>
-            <input
-              type="date"
-              value={formData.follow_up_date || ''}
-              onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
-              className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-navy-700 mb-1">Notes</label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              rows={3}
-            />
-          </div>
-        </form>
-        <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="customer-form"
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors"
-          >
-            Save Customer
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import type { Challan, Customer, Product } from '../services';
 import { KPICard, EmptyState } from '../components/ui';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { usePermissions, useSearch, useToast } from '../context';
+import CreateChallanModal from '../components/challans/CreateChallanModal';
 
 export default function Challans() {
   const permissions = usePermissions();
@@ -127,6 +128,7 @@ export default function Challans() {
     try {
       const response = await challanService.cancelChallan(challan.id);
       if (response.success) {
+        showToast('Challan cancelled successfully', 'success');
         loadChallans();
       } else {
         setError(response.message || 'Failed to cancel challan');
@@ -271,8 +273,8 @@ export default function Challans() {
 
       {/* Challans Table */}
       <div className="bg-white rounded-xl border border-navy-200 shadow-premium">
-        <div className="overflow-x-auto">
-          <table className="min-w-[1100px] divide-y divide-navy-100">
+        <div className="table-wrapper">
+          <table className="min-w-[1100px] w-full divide-y divide-navy-100">
             <thead className="bg-navy-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-navy-600 uppercase tracking-wider">Challan #</th>
@@ -370,7 +372,10 @@ export default function Challans() {
           customers={customers}
           products={products}
           onClose={() => setShowCreateModal(false)}
-          onSave={loadChallans}
+          onSave={() => {
+            loadChallans();
+            loadProducts();
+          }}
         />
       )}
 
@@ -383,7 +388,10 @@ export default function Challans() {
             setShowEditModal(false);
             setEditingChallan(null);
           }}
-          onSave={loadChallans}
+          onSave={() => {
+            loadChallans();
+            loadProducts();
+          }}
         />
       )}
 
@@ -478,284 +486,6 @@ function ChallansSkeleton() {
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-16 bg-navy-100 rounded-lg animate-pulse"></div>
           ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CreateChallanModal({ customers, products, challan, onClose, onSave }: { customers: Customer[]; products: Product[]; challan?: Challan; onClose: () => void; onSave: () => void }) {
-  const isEditing = !!challan;
-  const [formData, setFormData] = useState({
-    customer_id: challan?.customer_id || 0,
-    items: (challan?.items?.map(item => ({ product_id: item.product_id, quantity: item.quantity })) || []) as Array<{ product_id: number; quantity: number }>,
-    notes: challan?.notes || '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-
-  const handleAddItem = () => {
-    setFormData({
-      ...formData,
-      items: [...formData.items, { product_id: 0, quantity: 1 }],
-    });
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setFormData({
-      ...formData,
-      items: formData.items.filter((_, i) => i !== index),
-    });
-  };
-
-  const handleItemChange = (index: number, field: 'product_id' | 'quantity', value: number) => {
-    const newItems = [...formData.items];
-    newItems[index][field] = value;
-    setFormData({ ...formData, items: newItems });
-  };
-
-  const handleSubmit = async (confirm: boolean = false) => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.customer_id) newErrors.customer_id = 'Customer is required';
-    if (formData.items.length === 0) newErrors.items = 'At least one product is required';
-    
-    formData.items.forEach((item, index) => {
-      if (!item.product_id) newErrors[`item_${index}_product`] = 'Product is required';
-      if (!item.quantity || item.quantity <= 0) newErrors[`item_${index}_quantity`] = 'Quantity must be greater than 0';
-      
-      // Stock validation for confirm
-      if (confirm) {
-        const product = products.find(p => p.id === item.product_id);
-        if (product && item.quantity > product.current_stock) {
-          newErrors[`item_${index}_quantity`] = `Insufficient stock. Available: ${product.current_stock}`;
-        }
-      }
-    });
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
-    if (confirm) {
-      setIsConfirming(true);
-    } else {
-      setIsSubmitting(true);
-    }
-
-    try {
-      const response = isEditing && challan
-        ? await challanService.updateChallan(challan.id, formData)
-        : await challanService.createChallan(formData);
-      if (response.success && response.data) {
-        const challanId = response.data.id;
-        // If confirming, call confirm endpoint
-        if (confirm) {
-          const confirmResponse = await challanService.confirmChallan(challanId);
-          if (confirmResponse.success) {
-            onSave();
-            onClose();
-          } else {
-            setErrors({ submit: confirmResponse.message || 'Failed to confirm challan' });
-          }
-        } else {
-          onSave();
-          onClose();
-        }
-      } else {
-        setErrors({ submit: response.message || `Failed to ${isEditing ? 'update' : 'create'} challan` });
-      }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err?.message || `An error occurred while ${isEditing ? 'updating' : 'creating'} challan`;
-      setErrors({ submit: errorMessage });
-    } finally {
-      setIsSubmitting(false);
-      setIsConfirming(false);
-    }
-  };
-
-  const selectedCustomer = customers.find(c => c.id === formData.customer_id);
-
-  return (
-    <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-lg-premium border border-navy-200 flex flex-col">
-        <div className="p-6 border-b border-navy-200">
-          <h2 className="text-xl font-semibold text-navy-900">{isEditing ? 'Edit Sales Challan' : 'Create Sales Challan'}</h2>
-          <p className="text-sm text-navy-500 mt-1">{isEditing ? `Update draft challan ${challan?.challan_number}` : 'Create a challan for customer product dispatch'}</p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Customer Information */}
-            <div>
-              <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Customer Information</h3>
-              <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1">Customer *</label>
-                <select
-                  value={formData.customer_id}
-                  onChange={(e) => setFormData({ ...formData, customer_id: parseInt(e.target.value) })}
-                  className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                >
-                  <option value="">Select Customer</option>
-                  {customers.map(c => (
-                    <option key={c.id} value={c.id}>{c.company_name} ({c.contact_person})</option>
-                  ))}
-                </select>
-                {errors.customer_id && <p className="text-danger-600 text-xs mt-1">{errors.customer_id}</p>}
-              </div>
-              {selectedCustomer && (
-                <div className="mt-3 bg-navy-50 rounded-lg p-4 grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Contact Person</p>
-                    <p className="text-sm text-navy-900">{selectedCustomer.contact_person}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Email</p>
-                    <p className="text-sm text-navy-900">{selectedCustomer.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Phone</p>
-                    <p className="text-sm text-navy-900">{selectedCustomer.phone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">GST/Tax ID</p>
-                    <p className="text-sm text-navy-900">{selectedCustomer.tax_id || '-'}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Products */}
-            <div>
-              <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Products</h3>
-              {formData.items.map((item, index) => {
-                const product = products.find(p => p.id === item.product_id);
-                const availableStock = product?.current_stock || 0;
-                const insufficientStock = item.quantity > availableStock;
-
-                return (
-                  <div key={index} className="bg-navy-50 rounded-lg p-4 mb-3">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1">Product *</label>
-                        <select
-                          value={item.product_id}
-                          onChange={(e) => handleItemChange(index, 'product_id', parseInt(e.target.value))}
-                          className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                        >
-                          <option value="">Select Product</option>
-                          {products.map(p => (
-                            <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
-                          ))}
-                        </select>
-                        {errors[`item_${index}_product`] && <p className="text-danger-600 text-xs mt-1">{errors[`item_${index}_product`]}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1">Quantity *</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                          className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                        />
-                        {errors[`item_${index}_quantity`] && <p className="text-danger-600 text-xs mt-1">{errors[`item_${index}_quantity`]}</p>}
-                        {insufficientStock && (
-                          <p className="text-danger-600 text-xs mt-1">Insufficient stock. Only {availableStock} units available.</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1">Available Stock</label>
-                        <p className="text-sm text-navy-900 py-2.5">{availableStock}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-navy-700 mb-1">Unit Price</label>
-                        <p className="text-sm text-navy-900 py-2.5">{product ? formatCurrency(product.unit_price) : '-'}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveItem(index)}
-                      className="mt-2 text-sm text-danger-600 hover:text-danger-700 font-medium transition-colors"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                );
-              })}
-              <button
-                onClick={handleAddItem}
-                className="w-full py-2 border-2 border-dashed border-navy-300 rounded-lg text-navy-600 hover:border-primary-500 hover:text-primary-600 transition-colors"
-              >
-                + Add Product
-              </button>
-              {errors.items && <p className="text-danger-600 text-xs mt-2">{errors.items}</p>}
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-medium text-navy-700 mb-1">Notes</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
-                className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-              />
-            </div>
-
-            {/* Submit Error */}
-            {errors.submit && (
-              <div className="bg-danger-50 border border-danger-200 rounded-lg p-4">
-                <p className="text-danger-700 text-sm">{errors.submit}</p>
-              </div>
-            )}
-
-            {/* Totals */}
-            {formData.items.length > 0 && (
-              <div className="bg-navy-50 rounded-lg p-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Total Items</p>
-                    <p className="text-lg font-semibold text-navy-900">{formData.items.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Total Quantity</p>
-                    <p className="text-lg font-semibold text-navy-900">{formData.items.reduce((sum, item) => sum + item.quantity, 0)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-navy-500 mb-1">Total Amount</p>
-                    <p className="text-lg font-semibold text-navy-900">
-                      {formatCurrency(formData.items.reduce((sum, item) => {
-                        const product = products.find(p => p.id === item.product_id);
-                        return sum + (product ? product.unit_price * item.quantity : 0);
-                      }, 0))}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
-          <button 
-            onClick={onClose} 
-            disabled={isSubmitting || isConfirming}
-            className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => handleSubmit(false)} 
-            disabled={isSubmitting || isConfirming}
-            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-sm-premium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? 'Saving...' : 'Save Draft'}
-          </button>
-          <button 
-            onClick={() => handleSubmit(true)} 
-            disabled={isSubmitting || isConfirming}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isConfirming ? 'Confirming...' : 'Save & Confirm'}
-          </button>
         </div>
       </div>
     </div>

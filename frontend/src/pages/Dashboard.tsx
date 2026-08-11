@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth, usePermissions } from '../context';
 import { dashboardService } from '../services/dashboardService';
-import { formatCompactCurrency, formatDate } from '../utils/formatters';
+import { formatCompactCurrency, formatCurrency, formatDate } from '../utils/formatters';
+import { computeNiceAxisScale } from '../utils/chartScale';
 import { KPICard } from '../components/ui';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  Line,
+} from 'recharts';
 
 interface DashboardStats {
   total_customers: number;
@@ -72,11 +82,13 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | '3m' | '6m' | '1y' | 'custom'>('today');
+  const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | '3m' | '6m' | '1y' | 'custom'>('7d');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [chartView, setChartView] = useState<'revenue' | 'orders'>('revenue');
+  const hasLoadedRef = useRef(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -102,43 +114,137 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
     return labels[dateFilter] || 'Today';
   };
 
+  const isHourlyChart = useMemo(
+    () => salesTrend.some((item) => String(item.date).includes('T')),
+    [salesTrend]
+  );
+
+  const parseChartDateValue = (dateString: string) => {
+    if (dateString.includes('T')) {
+      const [datePart, timePart] = dateString.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour = 0, minute = 0] = timePart.split(':').map(Number);
+      return new Date(year, month - 1, day, hour, minute);
+    }
+    const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const formatChartDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = parseChartDateValue(String(dateString));
+    if (isHourlyChart) {
+      return date.toLocaleTimeString('en-IN', { hour: 'numeric', hour12: true });
+    }
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
   };
 
-  const formatChartValue = (value: number) => {
+  const formatTooltipDate = (dateString: string) => {
+    const date = parseChartDateValue(String(dateString));
+    if (isHourlyChart) {
+      return date.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const formatYAxisTick = (value: number) => {
     if (chartView === 'revenue') {
       return formatCompactCurrency(value);
     }
-    return value.toString();
+    return Number.isInteger(value) ? value.toString() : Math.round(value).toString();
   };
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (dateFilter === 'custom' && (!customStartDate || !customEndDate)) return;
-    loadDashboardData();
-  }, [isAuthenticated, dateFilter, customStartDate, customEndDate]);
+  const chartTotals = useMemo(() => ({
+    revenue: salesTrend.reduce((sum, item) => sum + Number(item.revenue ?? 0), 0),
+    orders: salesTrend.reduce((sum, item) => sum + Number(item.orders ?? 0), 0),
+  }), [salesTrend]);
 
-  const loadDashboardData = async () => {
+  const chartMetricKey = chartView === 'revenue' ? 'revenue' : 'orders';
+  const chartMaxValue = useMemo(() => {
+    if (salesTrend.length === 0) return 0;
+    return Math.max(...salesTrend.map((item) => Number(item[chartMetricKey] ?? 0)));
+  }, [salesTrend, chartMetricKey]);
+
+  const yAxisScale = useMemo(
+    () => computeNiceAxisScale(chartMaxValue, chartView),
+    [chartMaxValue, chartView]
+  );
+
+  const xAxisInterval = salesTrend.length > 14 ? Math.ceil(salesTrend.length / 7) - 1 : 0;
+
+  const hasChartData = salesTrend.length > 0;
+
+  const getPeriodParams = useCallback(() => {
+    const periodMap: Record<string, string> = {
+      today: 'today',
+      '7d': 'week',
+      '30d': 'month',
+      '3m': '3months',
+      '6m': '6months',
+      '1y': 'year',
+      custom: 'all',
+    };
+    const chartPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'month');
+    const statsPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'all');
+    const startDate = dateFilter === 'custom' ? customStartDate : undefined;
+    const endDate = dateFilter === 'custom' ? customEndDate : undefined;
+    return { chartPeriod, statsPeriod, startDate, endDate };
+  }, [dateFilter, customStartDate, customEndDate]);
+
+  const normalizeTrend = (data: SalesTrendItem[]) =>
+    data.map((item) => ({
+      date: String(item.date).split('.')[0],
+      revenue: Number(item.revenue ?? 0),
+      orders: Number(item.orders ?? 0),
+    }));
+
+  const loadPeriodData = useCallback(async () => {
+    const { chartPeriod, statsPeriod, startDate, endDate } = getPeriodParams();
+    setChartLoading(true);
+    setError(null);
+
+    try {
+      const [statsRes, trendRes] = await Promise.all([
+        dashboardService.getStats(statsPeriod, startDate, endDate),
+        dashboardService.getSalesTrend(chartPeriod, startDate, endDate),
+      ]);
+
+      if (statsRes.success && statsRes.data) {
+        setStats({
+          total_customers: Number(statsRes.data.total_customers ?? 0),
+          total_products: Number(statsRes.data.total_products ?? 0),
+          total_orders: Number(statsRes.data.total_orders ?? 0),
+          total_sales: Number(statsRes.data.total_sales ?? 0),
+          low_stock_count: Number(statsRes.data.low_stock_count ?? 0),
+          pending_orders: Number(statsRes.data.pending_orders ?? 0),
+          confirmed_orders: Number(statsRes.data.confirmed_orders ?? 0),
+          delivered_orders: Number(statsRes.data.delivered_orders ?? 0),
+          cancelled_orders: Number(statsRes.data.cancelled_orders ?? 0),
+        });
+      }
+
+      if (trendRes.success) {
+        setSalesTrend(normalizeTrend(trendRes.data || []));
+      }
+    } catch {
+      setError('Failed to load dashboard data');
+    } finally {
+      setChartLoading(false);
+    }
+  }, [getPeriodParams]);
+
+  const loadDashboardData = useCallback(async () => {
+    const { chartPeriod, statsPeriod, startDate, endDate } = getPeriodParams();
+
     try {
       setLoading(true);
       setError(null);
-
-      const periodMap: Record<string, string> = {
-        'today': 'today',
-        '7d': 'week',
-        '30d': 'month',
-        '3m': '3months',
-        '6m': '6months',
-        '1y': 'year',
-        'custom': 'all'
-      };
-
-      const chartPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'month');
-      const statsPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'all');
-      const startDate = dateFilter === 'custom' ? customStartDate : undefined;
-      const endDate = dateFilter === 'custom' ? customEndDate : undefined;
 
       const [statsRes, ordersRes, activitiesRes, trendRes, topProductsRes, lowStockRes] = await Promise.all([
         dashboardService.getStats(statsPeriod, startDate, endDate),
@@ -150,7 +256,7 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
       ]);
 
       if (statsRes.success && statsRes.data) {
-        const normalizedStats = {
+        setStats({
           total_customers: Number(statsRes.data.total_customers ?? 0),
           total_products: Number(statsRes.data.total_products ?? 0),
           total_orders: Number(statsRes.data.total_orders ?? 0),
@@ -160,31 +266,45 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
           confirmed_orders: Number(statsRes.data.confirmed_orders ?? 0),
           delivered_orders: Number(statsRes.data.delivered_orders ?? 0),
           cancelled_orders: Number(statsRes.data.cancelled_orders ?? 0),
-        };
-        setStats(normalizedStats);
+        });
       }
       if (ordersRes.success) {
-        const normalizedOrders = (ordersRes.data || []).map((order: any) => ({
-          ...order,
-          total_amount: Number(order.total_amount ?? 0),
-        }));
-        setRecentOrders(normalizedOrders);
+        setRecentOrders(
+          (ordersRes.data || []).map((order: RecentOrder) => ({
+            ...order,
+            total_amount: Number(order.total_amount ?? 0),
+          }))
+        );
       }
       if (activitiesRes.success) setRecentActivities(activitiesRes.data || []);
-      if (trendRes.success) setSalesTrend(trendRes.data || []);
+      if (trendRes.success) setSalesTrend(normalizeTrend(trendRes.data || []));
       if (topProductsRes.success) setTopProducts(topProductsRes.data || []);
       if (lowStockRes.success) setLowStockProducts(lowStockRes.data || []);
-    } catch (err) {
+    } catch {
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
+      hasLoadedRef.current = true;
     }
-  };
+  }, [getPeriodParams]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !hasLoadedRef.current) return;
+    if (dateFilter === 'custom' && (!customStartDate || !customEndDate)) return;
+    loadPeriodData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFilter, customStartDate, customEndDate]);
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">Please log in to view the dashboard</p>
+        <p className="text-navy-600">Please log in to view the dashboard</p>
       </div>
     );
   }
@@ -230,7 +350,7 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-navy-900">Dashboard</h1>
-          <p className="text-sm text-navy-500 mt-1">{getGreeting()}, {user?.first_name || 'Admin'} 👋</p>
+          <p className="text-sm text-navy-500 mt-1">{getGreeting()}, {user?.first_name || 'User'}</p>
           <p className="text-xs text-navy-400 mt-0.5">Here's what's happening with your business today.</p>
         </div>
         <div className="flex items-center space-x-2">
@@ -320,7 +440,7 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
       )}
 
       {/* Primary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
         <div onClick={() => onPageChange?.('customers')} className="cursor-pointer">
           <KPICard
             title="Total Customers"
@@ -352,9 +472,10 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
           <KPICard
             title="Total Revenue"
             value={formatCompactCurrency(stats?.total_sales)}
-            subtitle={dateFilter === 'custom' ? 'Lifetime sales' : 'Period sales'}
+            subtitle={dateFilter === 'custom' ? 'Confirmed sales in range' : 'Confirmed sales'}
             icon={<WalletIcon className="w-6 h-6" />}
             color="indigo"
+            compactValue
           />
         </div>
       </div>
@@ -392,9 +513,9 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
       </div>
 
       {/* Sales Performance & Order Pipeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-w-0">
         {/* Sales Performance */}
-        <div className="lg:col-span-7 bg-white rounded-xl border border-navy-200 shadow-premium p-5">
+        <div className="lg:col-span-7 bg-white rounded-xl border border-navy-200 shadow-premium p-5 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold text-navy-900">Sales Performance</h2>
@@ -423,66 +544,113 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
           {/* Key Metrics */}
           <div className="flex items-end gap-6 mb-4">
             <div>
-              <p className="text-xs text-navy-500 mb-1">Revenue</p>
-              <p className="text-2xl font-bold text-navy-900">{formatCompactCurrency(stats?.total_sales)}</p>
+              <p className="text-xs text-navy-500 mb-1">{chartView === 'revenue' ? 'Revenue' : 'Orders'}</p>
+              <p className="text-2xl font-bold text-navy-900">
+                {chartView === 'revenue'
+                  ? formatCompactCurrency(chartTotals.revenue)
+                  : chartTotals.orders}
+              </p>
             </div>
           </div>
 
           {/* Chart Visualization */}
-          <div className="h-36">
-            {salesTrend.length > 0 ? (
+          <div className="h-44 w-full min-w-0 relative">
+            {chartLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 rounded-lg">
+                <div className="w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+              </div>
+            )}
+            {hasChartData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesTrend}>
+                <ComposedChart
+                  key={`${dateFilter}-${chartView}`}
+                  data={salesTrend}
+                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                >
                   <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <linearGradient id="salesPerformanceGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tickFormatter={formatChartDate}
                     tick={{ fontSize: 10, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
+                    interval={xAxisInterval}
+                    minTickGap={20}
                   />
-                  <YAxis 
-                    tickFormatter={formatChartValue}
+                  <YAxis
+                    tickFormatter={formatYAxisTick}
                     tick={{ fontSize: 10, fill: '#64748b' }}
                     axisLine={false}
                     tickLine={false}
+                    width={chartView === 'revenue' ? 52 : 28}
+                    domain={yAxisScale.domain}
+                    ticks={yAxisScale.ticks}
+                    allowDecimals={chartView === 'orders' ? false : true}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #e2e8f0', 
-                      borderRadius: '8px',
-                      fontSize: '12px'
+                  <Tooltip
+                    cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
+                    animationDuration={200}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const value = Number(payload[0].value ?? 0);
+                      return (
+                        <div className="bg-white border border-navy-200 rounded-lg shadow-sm-premium px-3 py-2.5 text-xs">
+                          <p className="text-[11px] text-navy-500 mb-1">Date</p>
+                          <p className="font-medium text-navy-900 mb-2">{formatTooltipDate(String(label))}</p>
+                          <p className="text-[11px] text-navy-500 mb-0.5">
+                            {chartView === 'revenue' ? 'Revenue' : 'Orders'}
+                          </p>
+                          <p className="font-semibold text-primary-700">
+                            {chartView === 'revenue' ? formatCurrency(value) : value}
+                          </p>
+                        </div>
+                      );
                     }}
-                    labelFormatter={(label: any) => formatChartDate(label)}
-                    formatter={(value: any) => [formatChartValue(value), chartView === 'revenue' ? 'Revenue' : 'Orders']}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey={chartView} 
-                    stroke="#6366f1" 
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
+                  <Area
+                    type="monotone"
+                    dataKey={chartMetricKey}
+                    stroke="none"
+                    fill="url(#salesPerformanceGradient)"
+                    isAnimationActive
+                    animationDuration={500}
+                    animationEasing="ease-out"
                   />
-                </AreaChart>
+                  <Line
+                    type="monotone"
+                    dataKey={chartMetricKey}
+                    stroke="#6366f1"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#6366f1', stroke: '#fff', strokeWidth: 2, r: 3.5 }}
+                    activeDot={{
+                      fill: '#6366f1',
+                      stroke: '#fff',
+                      strokeWidth: 2,
+                      r: 7,
+                    }}
+                    connectNulls
+                    isAnimationActive
+                    animationDuration={500}
+                    animationEasing="ease-out"
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-full flex items-center justify-center text-navy-400 text-sm">
-                No data available
+                No sales data for this period
               </div>
             )}
           </div>
         </div>
 
         {/* Order Pipeline */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-navy-200 shadow-premium p-5">
+        <div className="lg:col-span-5 bg-white rounded-xl border border-navy-200 shadow-premium p-5 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-navy-900">Order Pipeline</h2>
             <span className="text-xs text-navy-500 bg-navy-100 px-2 py-1 rounded-full">{stats?.total_orders || 0} Total</span>
@@ -499,12 +667,12 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
       </div>
 
       {/* Recent Orders & Top Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 min-w-0">
         {/* Recent Orders */}
-        <div className="lg:col-span-7 bg-white rounded-xl border border-navy-200 shadow-premium p-5">
+        <div className="lg:col-span-7 bg-white rounded-xl border border-navy-200 shadow-premium p-5 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-navy-900">Recent Orders</h2>
-            <button onClick={() => onPageChange?.('orders')} className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">View all →</button>
+            <button onClick={() => onPageChange?.('orders')} className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">View all</button>
           </div>
           {recentOrders.length === 0 ? (
             <div className="text-center py-8">
@@ -515,7 +683,7 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
               <p className="text-xs text-navy-400 mt-1">Orders will appear here when created</p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-5 px-5">
+            <div className="overflow-x-auto custom-scrollbar">
               <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="border-b border-navy-200">
@@ -562,10 +730,10 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
         </div>
 
         {/* Top Products */}
-        <div className="lg:col-span-5 bg-white rounded-xl border border-navy-200 shadow-premium p-5">
+        <div className="lg:col-span-5 bg-white rounded-xl border border-navy-200 shadow-premium p-5 min-w-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-navy-900">Top Products</h2>
-            <button onClick={() => onPageChange?.('products')} className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">View all →</button>
+            <button onClick={() => onPageChange?.('products')} className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">View all</button>
           </div>
           {topProducts.length > 0 ? (
             <div className="space-y-3">
@@ -648,7 +816,7 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
                 <p className="text-xs text-warning-600 text-center">+{lowStockProducts.length - 3} more products</p>
               )}
               <button onClick={() => onPageChange?.('inventory')} className="w-full mt-3 text-sm text-warning-700 hover:text-warning-900 font-medium transition-colors">
-                Review Inventory →
+                Review Inventory
               </button>
             </div>
           ) : (

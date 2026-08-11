@@ -328,7 +328,7 @@ export class ChallanService {
       // Validate stock for all items
       for (const item of challan.items) {
         const stockQuery = `
-          SELECT current_stock FROM products WHERE id = $1
+          SELECT current_stock FROM products WHERE id = $1 FOR UPDATE
         `;
         const stockResult = await client.query(stockQuery, [item.product_id]);
         const product = stockResult.rows[0];

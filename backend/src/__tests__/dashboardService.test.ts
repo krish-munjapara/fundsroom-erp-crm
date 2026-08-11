@@ -90,4 +90,53 @@ describe('DashboardService', () => {
       });
     });
   });
+
+  describe('getSalesTrend', () => {
+    test('should return a complete date series with revenue and order counts', async () => {
+      const mockTrend = [
+        { date: '2026-08-06', revenue: 0, orders: 0 },
+        { date: '2026-08-07', revenue: 0, orders: 0 },
+        { date: '2026-08-08', revenue: 9251.5, orders: 1 },
+      ];
+
+      (pool.query as jest.Mock).mockResolvedValue({
+        rows: mockTrend,
+      });
+
+      const result = await DashboardService.getSalesTrend('week');
+
+      expect(result).toEqual(mockTrend);
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('generate_series'),
+      );
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('revenue_data'),
+      );
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('order_data'),
+      );
+    });
+
+    test('should use parameterized custom date range with auto granularity', async () => {
+      (pool.query as jest.Mock).mockResolvedValue({ rows: [] });
+
+      await DashboardService.getSalesTrend('month', '2026-08-01', '2026-08-12');
+
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('$1::date'),
+        ['2026-08-01', '2026-08-12'],
+      );
+      expect(String((pool.query as jest.Mock).mock.calls[0][0])).toContain("'1 day'");
+    });
+
+    test('should use hourly aggregation for today', async () => {
+      (pool.query as jest.Mock).mockResolvedValue({ rows: [] });
+
+      await DashboardService.getSalesTrend('today');
+
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining("'1 hour'"),
+      );
+    });
+  });
 });
