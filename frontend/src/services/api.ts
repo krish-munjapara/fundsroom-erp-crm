@@ -13,6 +13,36 @@ export interface ApiResponse<T> {
 }
 
 class ApiService {
+  private onUnauthorized?: () => void;
+
+  setUnauthorizedHandler(handler: () => void): void {
+    this.onUnauthorized = handler;
+  }
+
+  private handleUnauthorized(): void {
+    this.removeToken();
+    localStorage.removeItem('user');
+    this.onUnauthorized?.();
+  }
+
+  private async parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    if (response.status === 401) {
+      this.handleUnauthorized();
+      return { success: false, message: 'Session expired. Please sign in again.' };
+    }
+
+    if (response.status === 304) {
+      return { success: true, data: undefined };
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
+
+    return response.json();
+  }
+
   private getToken(): string | null {
     return localStorage.getItem('token');
   }
@@ -37,18 +67,7 @@ class ApiService {
       cache: 'no-store',
     });
 
-    // Handle 304 Not Modified responses - they have no body
-    if (response.status === 304) {
-      return { success: true, data: undefined };
-    }
-
-    // Handle error responses
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
-      return errorData;
-    }
-
-    return response.json();
+    return this.parseResponse<T>(response);
   }
 
   async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
@@ -58,12 +77,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
-      return errorData;
-    }
-
-    return response.json();
+    return this.parseResponse<T>(response);
   }
 
   async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
@@ -73,12 +87,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
-      return errorData;
-    }
-
-    return response.json();
+    return this.parseResponse<T>(response);
   }
 
   async patch<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
@@ -88,12 +97,7 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
-      return errorData;
-    }
-
-    return response.json();
+    return this.parseResponse<T>(response);
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
@@ -102,12 +106,7 @@ class ApiService {
       headers: this.getHeaders(),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
-      return errorData;
-    }
-
-    return response.json();
+    return this.parseResponse<T>(response);
   }
 
   setToken(token: string): void {

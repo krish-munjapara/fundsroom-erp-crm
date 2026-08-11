@@ -18,6 +18,8 @@ export interface Customer {
   is_active: boolean;
   notes?: string;
   customer_type?: string;
+  status?: string;
+  follow_up_date?: string;
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +37,9 @@ export interface CreateCustomerData {
   tax_id?: string;
   credit_limit?: number;
   notes?: string;
-  customer_type?: string;
+  customer_type?: 'retail' | 'wholesale' | 'distributor';
+  status?: 'lead' | 'active' | 'inactive';
+  follow_up_date?: string;
   is_active?: boolean;
 }
 
@@ -48,7 +52,7 @@ export const customerService = {
 
     // Always send default pagination parameters to avoid validation issues
     if (!params?.page) queryParams.append('page', '1');
-    if (!params?.limit) queryParams.append('limit', '10');
+    if (!params?.limit) queryParams.append('limit', '500');
 
     const endpoint = `/api/customers?${queryParams.toString()}`;
     return apiService.get<Customer[]>(endpoint);

@@ -10,6 +10,8 @@ export {
   createOrderSchema,
   updateOrderSchema,
   updateOrderStatusSchema,
+  createChallanSchema,
+  updateChallanSchema,
   paginationSchema,
 } from './businessValidator';
 export {

@@ -18,7 +18,13 @@ export interface Order {
   created_at: string;
   updated_at: string;
   customer_name?: string;
+  customer_contact?: string;
   customer_email?: string;
+  customer_phone?: string;
+  customer_tax_id?: string;
+  created_by_name?: string;
+  total_items?: number;
+  total_quantity?: number;
   items?: OrderItem[];
 }
 
@@ -26,39 +32,54 @@ export interface OrderItem {
   id: number;
   order_id: number;
   product_id: number;
+  product_name?: string;
+  product_sku?: string;
+  sku?: string;
   quantity: number;
   unit_price: number;
   tax_rate: number;
   discount_amount: number;
   subtotal: number;
   total_amount: number;
+  line_total?: number;
   created_at: string;
   updated_at: string;
-  product_name?: string;
-  product_sku?: string;
 }
 
 export interface CreateOrderData {
   customer_id: number;
   order_date?: string;
   delivery_date?: string;
-  status?: string;
   notes?: string;
   items: {
     product_id: number;
     quantity: number;
-    unit_price: number;
+    unit_price?: number;
     tax_rate?: number;
     item_discount_amount?: number;
   }[];
 }
 
+export interface OrderStats {
+  total_orders: string | number;
+  pending_orders: string | number;
+  confirmed_orders: string | number;
+  delivered_orders: string | number;
+  total_revenue: string | number;
+}
+
 export const orderService = {
-  async getAllOrders(params?: { page?: number; limit?: number; search?: string }): Promise<ApiResponse<Order[]>> {
+  async getAllOrders(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+  }): Promise<ApiResponse<Order[]>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
 
     const endpoint = `/api/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<Order[]>(endpoint);
@@ -80,8 +101,12 @@ export const orderService = {
     return apiService.post<Order>('/api/orders', data);
   },
 
-  async updateOrder(id: number, data: Partial<CreateOrderData>): Promise<ApiResponse<Order>> {
+  async updateOrder(id: number, data: CreateOrderData): Promise<ApiResponse<Order>> {
     return apiService.put<Order>(`/api/orders/${id}`, data);
+  },
+
+  async confirmOrder(id: number): Promise<ApiResponse<Order>> {
+    return apiService.post<Order>(`/api/orders/${id}/confirm`, {});
   },
 
   async updateOrderStatus(id: number, status: string): Promise<ApiResponse<Order>> {
@@ -92,7 +117,7 @@ export const orderService = {
     return apiService.delete<void>(`/api/orders/${id}`);
   },
 
-  async getOrderStats(): Promise<ApiResponse<any>> {
-    return apiService.get('/api/orders/stats');
+  async getOrderStats(): Promise<ApiResponse<OrderStats>> {
+    return apiService.get<OrderStats>('/api/orders/stats');
   },
 };

@@ -1,46 +1,67 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context';
-import { apiService } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth, usePermissions, useToast } from '../context';
+import { reportingService } from '../services';
 import { EmptyState } from '../components/ui';
 import { formatCurrency } from '../utils/formatters';
+import { buildReportCsv, downloadCsv } from '../utils/exportCsv';
+
+type ReportType = 'sales' | 'customers' | 'products' | 'inventory';
 
 export default function Reports() {
   const { isAuthenticated } = useAuth();
-  const [reportType, setReportType] = useState<'sales' | 'customers' | 'products' | 'inventory'>('sales');
+  const permissions = usePermissions();
+  const { showToast } = useToast();
+  const [reportType, setReportType] = useState<ReportType>('sales');
   const [reportData, setReportData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  const loadReport = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const filters: Record<string, string> = {};
+      if (startDate) filters.start_date = startDate;
+      if (endDate) filters.end_date = endDate;
+
+      let response;
+      switch (reportType) {
+        case 'sales':
+          response = await reportingService.getSalesReport(filters);
+          break;
+        case 'customers':
+          response = await reportingService.getCustomerReport(filters);
+          break;
+        case 'products':
+          response = await reportingService.getProductPerformanceReport(filters);
+          break;
+        case 'inventory':
+          response = await reportingService.getInventoryReport(filters);
+          break;
+      }
+
+      if (response.success && response.data) {
+        setReportData(response.data);
+      } else {
+        setReportData(null);
+        setError(response.message || 'Failed to load report');
+      }
+    } catch {
+      setReportData(null);
+      setError('Unable to load report. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [reportType, startDate, endDate]);
+
   useEffect(() => {
     if (isAuthenticated) {
       loadReport();
     }
-  }, [reportType, startDate, endDate, isAuthenticated]);
-
-  const loadReport = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params = new URLSearchParams();
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
-      const queryString = params.toString();
-      const endpoint = `/reports/${reportType}${queryString ? `?${queryString}` : ''}`;
-      
-      const response = await apiService.get(endpoint);
-      if (response.success && response.data) {
-        setReportData(response.data);
-      } else {
-        setError(response.message || 'Failed to load report');
-      }
-    } catch (err) {
-      setError('An error occurred while loading report');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAuthenticated, loadReport]);
 
   if (!isAuthenticated) {
     return (
@@ -132,6 +153,17 @@ export default function Reports() {
                 Clear
               </button>
             )}
+            {permissions.canExportReports && reportData && (
+              <button
+                onClick={() => {
+                  downloadCsv(`${reportType}-report.csv`, buildReportCsv(reportType, reportData));
+                  showToast('Report exported as CSV', 'success');
+                }}
+                className="px-4 py-2.5 border border-navy-300 text-navy-700 rounded-lg hover:bg-navy-50 transition-all"
+              >
+                Export CSV
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -184,8 +216,19 @@ function SalesReport({ data }: { data: any }) {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
+          <p className="text-sm text-navy-600">Pending Orders</p>
+          <p className="text-2xl font-bold text-navy-900">{data.pending_orders ?? data.orders_by_status?.pending ?? 0}</p>
+        </div>
+        <div className="bg-success-50 p-4 rounded-xl border border-success-100">
+          <p className="text-sm text-navy-600">Confirmed Orders</p>
+          <p className="text-2xl font-bold text-navy-900">{data.confirmed_orders ?? data.orders_by_status?.confirmed ?? 0}</p>
+        </div>
+      </div>
+
       <h3 className="font-semibold mb-2 text-navy-900">Orders by Status</h3>
-      <div className="space-y-2">
+      <div className="space-y-2 mb-6">
         {Object.entries(data.orders_by_status || {}).map(([status, count]: [string, any]) => (
           <div key={status} className="flex justify-between border-b border-navy-200 pb-2">
             <span className="capitalize text-navy-700">{status}</span>
@@ -193,6 +236,74 @@ function SalesReport({ data }: { data: any }) {
           </div>
         ))}
       </div>
+
+      {data.revenue_by_month?.length > 0 && (
+        <>
+          <h3 className="font-semibold mb-2 text-navy-900">Sales by Date</h3>
+          <div className="space-y-2 mb-6">
+            {data.revenue_by_month.map((item: any) => (
+              <div key={item.month} className="flex justify-between border-b border-navy-200 pb-2">
+                <span className="text-navy-700">{item.month}</span>
+                <span className="font-medium text-navy-900">{formatCurrency(item.revenue)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {data.sales_by_customer?.length > 0 && (
+        <>
+          <h3 className="font-semibold mb-2 text-navy-900">Sales by Customer</h3>
+          <div className="overflow-x-auto mb-6">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-navy-200">
+                  <th className="text-left py-2 text-navy-600">Customer</th>
+                  <th className="text-right py-2 text-navy-600">Orders</th>
+                  <th className="text-right py-2 text-navy-600">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.sales_by_customer.map((customer: any) => (
+                  <tr key={customer.customer_id} className="border-b border-navy-200">
+                    <td className="py-2 text-navy-900">{customer.company_name}</td>
+                    <td className="text-right py-2 text-navy-900">{customer.total_orders}</td>
+                    <td className="text-right py-2 text-navy-900">{formatCurrency(customer.total_revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {data.sales_by_product?.length > 0 && (
+        <>
+          <h3 className="font-semibold mb-2 text-navy-900">Sales by Product</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-navy-200">
+                  <th className="text-left py-2 text-navy-600">Product</th>
+                  <th className="text-left py-2 text-navy-600">SKU</th>
+                  <th className="text-right py-2 text-navy-600">Quantity</th>
+                  <th className="text-right py-2 text-navy-600">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.sales_by_product.map((product: any) => (
+                  <tr key={product.product_id} className="border-b border-navy-200">
+                    <td className="py-2 text-navy-900">{product.product_name}</td>
+                    <td className="py-2 text-navy-900">{product.sku}</td>
+                    <td className="text-right py-2 text-navy-900">{product.total_quantity}</td>
+                    <td className="text-right py-2 text-navy-900">{formatCurrency(product.total_revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

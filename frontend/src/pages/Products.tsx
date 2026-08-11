@@ -3,8 +3,12 @@ import { productService } from '../services';
 import type { Product, CreateProductData, UpdateProductData } from '../services';
 import { formatCurrency } from '../utils/formatters';
 import { KPICard, StatusBadge, EmptyState } from '../components/ui';
+import { usePermissions, useSearch, useToast } from '../context';
 
 export default function Products() {
+  const permissions = usePermissions();
+  const { consumePendingSearch } = useSearch();
+  const { showToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,11 @@ export default function Products() {
   useEffect(() => {
     loadProducts();
   }, []);
+
+  useEffect(() => {
+    const term = consumePendingSearch('products');
+    if (term) setSearchTerm(term);
+  }, [consumePendingSearch]);
 
   const loadProducts = async () => {
     try {
@@ -55,6 +64,7 @@ export default function Products() {
       const response = await productService.createProduct(data);
       if (response.success) {
         setShowModal(false);
+        showToast('Product created successfully', 'success');
         loadProducts();
       } else {
         setError(response.message || 'Failed to create product');
@@ -269,6 +279,7 @@ export default function Products() {
             <p className="text-sm text-navy-500 mt-1">Manage your product catalog</p>
           </div>
         </div>
+        {permissions.canManageProducts && (
         <button
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -278,6 +289,7 @@ export default function Products() {
           </svg>
           Add Product
         </button>
+        )}
       </div>
 
       {/* Statistics Cards */}
@@ -489,18 +501,24 @@ export default function Products() {
                             >
                               View Details
                             </button>
+                            {permissions.canManageProducts && (
                             <button
                               onClick={() => handleEditProduct(product)}
                               className="w-full text-left px-4 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
                             >
                               Edit Product
                             </button>
+                            )}
+                            {permissions.canManageInventory && (
                             <button
                               onClick={() => handleAdjustStock(product)}
                               className="w-full text-left px-4 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
                             >
                               Adjust Stock
                             </button>
+                            )}
+                            {permissions.canManageProducts && (
+                            <>
                             <button
                               onClick={() => handleDuplicateProduct(product)}
                               className="w-full text-left px-4 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
@@ -513,12 +531,16 @@ export default function Products() {
                             >
                               {product.is_active ? 'Deactivate' : 'Activate'}
                             </button>
+                            </>
+                            )}
+                            {permissions.canDeleteProducts && (
                             <button
                               onClick={() => handleDeleteProduct(product.id)}
                               className="w-full text-left px-4 py-2 text-sm text-danger-600 hover:bg-danger-50 transition-colors"
                             >
                               Delete
                             </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1147,7 +1169,7 @@ function EditProductModal({ product, onClose, onSave }: { product: Product; onCl
           <p className="text-sm text-navy-500 mt-1">Update product details below</p>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form id="edit-product-form" onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
             <div>
               <h3 className="text-sm font-medium text-navy-500 uppercase tracking-wider mb-3">Basic Information</h3>
@@ -1276,7 +1298,7 @@ function EditProductModal({ product, onClose, onSave }: { product: Product; onCl
         </div>
         <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
           <button type="button" onClick={onClose} className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors">Cancel</button>
-          <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Update Product</button>
+          <button type="submit" form="edit-product-form" className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Update Product</button>
         </div>
       </div>
     </div>

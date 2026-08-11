@@ -25,6 +25,9 @@ export const createCustomerSchema = Joi.object({
   postal_code: Joi.string().max(20).optional(),
   country: Joi.string().max(100).optional(),
   tax_id: Joi.string().max(50).optional(),
+  customer_type: Joi.string().valid('retail', 'wholesale', 'distributor').optional(),
+  status: Joi.string().valid('lead', 'active', 'inactive').optional(),
+  follow_up_date: Joi.date().optional(),
   credit_limit: Joi.number().min(0).optional().messages({
     'number.min': 'Credit limit must be non-negative',
   }),
@@ -42,6 +45,9 @@ export const updateCustomerSchema = Joi.object({
   postal_code: Joi.string().max(20).optional(),
   country: Joi.string().max(100).optional(),
   tax_id: Joi.string().max(50).optional(),
+  customer_type: Joi.string().valid('retail', 'wholesale', 'distributor').optional(),
+  status: Joi.string().valid('lead', 'active', 'inactive').optional(),
+  follow_up_date: Joi.date().optional(),
   credit_limit: Joi.number().min(0).optional(),
   current_balance: Joi.number().min(0).optional(),
   is_active: Joi.boolean().optional(),
@@ -183,12 +189,26 @@ export const updateOrderSchema = Joi.object({
   customer_id: Joi.number().integer().positive().optional(),
   order_date: Joi.date().optional(),
   delivery_date: Joi.date().optional(),
-  status: Joi.string().valid('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled').optional(),
-  subtotal: Joi.number().min(0).optional(),
-  tax_amount: Joi.number().min(0).optional(),
-  discount_amount: Joi.number().min(0).optional(),
-  total_amount: Joi.number().min(0).optional(),
-  notes: Joi.string().max(1000).optional(),
+  notes: Joi.string().max(1000).allow('').optional(),
+  items: Joi.array().items(
+    Joi.object({
+      product_id: Joi.number().integer().positive().required().messages({
+        'number.integer': 'Product ID must be an integer',
+        'number.positive': 'Product ID must be positive',
+        'any.required': 'Product ID is required',
+      }),
+      quantity: Joi.number().integer().positive().required().messages({
+        'number.integer': 'Quantity must be an integer',
+        'number.positive': 'Quantity must be positive',
+        'any.required': 'Quantity is required',
+      }),
+      unit_price: Joi.number().min(0).optional(),
+      tax_rate: Joi.number().min(0).max(100).optional(),
+      item_discount_amount: Joi.number().min(0).optional(),
+    })
+  ).min(1).optional().messages({
+    'array.min': 'Order must have at least one item',
+  }),
 });
 
 export const updateOrderStatusSchema = Joi.object({
@@ -198,11 +218,50 @@ export const updateOrderStatusSchema = Joi.object({
   }),
 });
 
+// Challan Validators
+export const createChallanSchema = Joi.object({
+  customer_id: Joi.number().integer().positive().required().messages({
+    'number.integer': 'Customer ID must be an integer',
+    'number.positive': 'Customer ID must be positive',
+    'any.required': 'Customer is required',
+  }),
+  items: Joi.array().items(
+    Joi.object({
+      product_id: Joi.number().integer().positive().required().messages({
+        'number.integer': 'Product ID must be an integer',
+        'number.positive': 'Product ID must be positive',
+        'any.required': 'Product ID is required',
+      }),
+      quantity: Joi.number().integer().positive().required().messages({
+        'number.integer': 'Quantity must be an integer',
+        'number.positive': 'Quantity must be positive',
+        'any.required': 'Quantity is required',
+      }),
+    })
+  ).min(1).required().messages({
+    'array.min': 'Challan must have at least one item',
+    'any.required': 'Challan items are required',
+  }),
+  notes: Joi.string().max(1000).optional(),
+});
+
+export const updateChallanSchema = Joi.object({
+  customer_id: Joi.number().integer().positive().optional(),
+  items: Joi.array().items(
+    Joi.object({
+      product_id: Joi.number().integer().positive().required(),
+      quantity: Joi.number().integer().positive().required(),
+    })
+  ).min(1).optional(),
+  notes: Joi.string().max(1000).optional(),
+});
+
 // Pagination Validators
 export const paginationSchema = Joi.object({
   page: Joi.number().integer().min(1).optional(),
-  limit: Joi.number().integer().min(1).max(100).optional(),
+  limit: Joi.number().integer().min(1).max(500).optional(),
   search: Joi.string().max(100).optional(),
+  status: Joi.string().valid('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled').optional(),
   sort: Joi.string().optional(),
   order: Joi.string().valid('asc', 'desc').optional(),
 });

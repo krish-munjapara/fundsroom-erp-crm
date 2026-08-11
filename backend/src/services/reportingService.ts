@@ -11,26 +11,30 @@ export class ReportingService {
   // Sales Report
   static async getSalesReport(filters: ReportFilters = {}): Promise<SalesReport> {
     const { start_date, end_date, status } = filters;
-    let whereClause = '';
+    const conditions: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
 
-    if (start_date || end_date || status) {
-      const conditions: string[] = [];
-      if (start_date) {
-        conditions.push(`order_date >= $${paramIndex++}`);
-        params.push(start_date);
-      }
-      if (end_date) {
-        conditions.push(`order_date <= $${paramIndex++}`);
-        params.push(end_date);
-      }
-      if (status) {
-        conditions.push(`status = $${paramIndex++}`);
-        params.push(status);
-      }
-      whereClause = `WHERE ${conditions.join(' AND ')}`;
+    if (start_date) {
+      conditions.push(`order_date >= $${paramIndex++}`);
+      params.push(start_date);
     }
+    if (end_date) {
+      conditions.push(`order_date <= $${paramIndex++}`);
+      params.push(end_date);
+    }
+    if (status) {
+      conditions.push(`status = $${paramIndex++}`);
+      params.push(status);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const orderConditions = conditions.map((c) =>
+      c.replace(/\border_date\b/g, 'o.order_date').replace(/\bstatus\b/g, 'o.status')
+    );
+    const orderWhereClause =
+      orderConditions.length > 0 ? `WHERE ${orderConditions.join(' AND ')}` : '';
 
     // Get order stats
     const statsQuery = `
@@ -74,12 +78,61 @@ export class ReportingService {
       revenue: parseFloat(row.revenue),
     }));
 
+    const customerSalesQuery = `
+      SELECT
+        c.id as customer_id,
+        c.company_name,
+        COUNT(o.id) as total_orders,
+        COALESCE(SUM(o.total_amount), 0) as total_revenue
+      FROM orders o
+      JOIN customers c ON o.customer_id = c.id
+      ${orderWhereClause}
+      GROUP BY c.id, c.company_name
+      ORDER BY total_revenue DESC
+      LIMIT 10
+    `;
+    const customerSalesResult = await pool.query(customerSalesQuery, params);
+    const salesByCustomer = customerSalesResult.rows.map(row => ({
+      customer_id: row.customer_id,
+      company_name: row.company_name,
+      total_orders: parseInt(row.total_orders, 10),
+      total_revenue: parseFloat(row.total_revenue),
+    }));
+
+    const productSalesQuery = `
+      SELECT
+        p.id as product_id,
+        COALESCE(oi.product_name, p.name) as product_name,
+        COALESCE(oi.sku, p.sku) as sku,
+        COALESCE(SUM(oi.quantity), 0) as total_quantity,
+        COALESCE(SUM(oi.total_amount), 0) as total_revenue
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      JOIN products p ON oi.product_id = p.id
+      ${orderWhereClause}
+      GROUP BY p.id, COALESCE(oi.product_name, p.name), COALESCE(oi.sku, p.sku)
+      ORDER BY total_revenue DESC
+      LIMIT 10
+    `;
+    const productSalesResult = await pool.query(productSalesQuery, params);
+    const salesByProduct = productSalesResult.rows.map(row => ({
+      product_id: row.product_id,
+      product_name: row.product_name,
+      sku: row.sku,
+      total_quantity: parseInt(row.total_quantity, 10),
+      total_revenue: parseFloat(row.total_revenue),
+    }));
+
     return {
-      total_orders: parseInt(statsRow.total_orders) || 0,
+      total_orders: parseInt(statsRow.total_orders, 10) || 0,
       total_revenue: parseFloat(statsRow.total_revenue) || 0,
       average_order_value: parseFloat(statsRow.average_order_value) || 0,
+      pending_orders: ordersByStatus.pending || 0,
+      confirmed_orders: ordersByStatus.confirmed || 0,
       orders_by_status: ordersByStatus,
       revenue_by_month: revenueByMonth,
+      sales_by_customer: salesByCustomer,
+      sales_by_product: salesByProduct,
     };
   }
 

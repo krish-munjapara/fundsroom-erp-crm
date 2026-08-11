@@ -32,10 +32,14 @@ describe('ReportingService', () => {
           { month: '2024-02', revenue: '15000' },
         ],
       };
+      const mockCustomerSalesResult = { rows: [] };
+      const mockProductSalesResult = { rows: [] };
       mockPool.query
         .mockResolvedValueOnce(mockStatsResult)
         .mockResolvedValueOnce(mockStatusResult)
-        .mockResolvedValueOnce(mockMonthlyResult);
+        .mockResolvedValueOnce(mockMonthlyResult)
+        .mockResolvedValueOnce(mockCustomerSalesResult)
+        .mockResolvedValueOnce(mockProductSalesResult);
 
       const result = await ReportingService.getSalesReport();
 
@@ -43,13 +47,17 @@ describe('ReportingService', () => {
         total_orders: 100,
         total_revenue: 50000,
         average_order_value: 500,
+        pending_orders: 10,
+        confirmed_orders: 50,
         orders_by_status: { pending: 10, confirmed: 50, delivered: 40 },
         revenue_by_month: [
           { month: '2024-01', revenue: 10000 },
           { month: '2024-02', revenue: 15000 },
         ],
+        sales_by_customer: [],
+        sales_by_product: [],
       });
-      expect(mockPool.query).toHaveBeenCalledTimes(3);
+      expect(mockPool.query).toHaveBeenCalledTimes(5);
     });
 
     it('should return sales report with date filters', async () => {
@@ -65,7 +73,9 @@ describe('ReportingService', () => {
       mockPool.query
         .mockResolvedValueOnce(mockStatsResult)
         .mockResolvedValueOnce(mockStatusResult)
-        .mockResolvedValueOnce(mockMonthlyResult);
+        .mockResolvedValueOnce(mockMonthlyResult)
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
 
       const filters = {
         start_date: new Date('2024-03-01'),
@@ -94,7 +104,9 @@ describe('ReportingService', () => {
       mockPool.query
         .mockResolvedValueOnce(mockStatsResult)
         .mockResolvedValueOnce(mockStatusResult)
-        .mockResolvedValueOnce(mockMonthlyResult);
+        .mockResolvedValueOnce(mockMonthlyResult)
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
 
       const filters = { status: 'confirmed' };
 

@@ -87,8 +87,11 @@ describe('Product Validators', () => {
       const validData = {
         sku: 'PROD-001',
         name: 'Test Product',
-        base_price: 100,
-        selling_price: 150,
+        category: 'Electronics',
+        unit_price: 100,
+        current_stock: 50,
+        minimum_stock: 10,
+        location: 'Warehouse A',
       };
       
       const { error } = createProductSchema.validate(validData);
@@ -173,6 +176,7 @@ describe('Inventory Validators', () => {
         product_id: 1,
         quantity: 50,
         movement_type: 'in',
+        notes: 'Stock received from supplier',
       };
       
       const { error } = stockMovementSchema.validate(validData);
@@ -285,9 +289,9 @@ describe('Pagination Validators', () => {
       expect(error).toBeDefined();
     });
 
-    test('should reject limit above 100', () => {
+    test('should reject limit above 500', () => {
       const invalidData = {
-        limit: 150,
+        limit: 501,
       };
       
       const { error } = paginationSchema.validate(invalidData);

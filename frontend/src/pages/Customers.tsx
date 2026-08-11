@@ -4,8 +4,12 @@ import type { Customer, CreateCustomerData, CustomerActivity } from '../services
 import type { Order } from '../services';
 import { KPICard } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { usePermissions, useSearch, useToast } from '../context';
 
 export default function Customers() {
+  const permissions = usePermissions();
+  const { consumePendingSearch } = useSearch();
+  const { showToast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Record<number, Order[]>>({});
   const [loading, setLoading] = useState(true);
@@ -28,6 +32,11 @@ export default function Customers() {
   useEffect(() => {
     loadCustomers();
   }, []);
+
+  useEffect(() => {
+    const term = consumePendingSearch('customers');
+    if (term) setSearchTerm(term);
+  }, [consumePendingSearch]);
 
   // Close action menu when clicking outside
   useEffect(() => {
@@ -124,6 +133,7 @@ export default function Customers() {
       const response = await customerService.createCustomer(data);
       if (response.success) {
         setShowModal(false);
+        showToast('Customer created successfully', 'success');
         loadCustomers();
       } else {
         setError(response.message || 'Failed to create customer');
@@ -273,6 +283,7 @@ export default function Customers() {
             <p className="text-sm text-navy-500 mt-1">Manage your customers and customer relationships</p>
           </div>
         </div>
+        {permissions.canManageCustomers && (
         <button
           onClick={() => setShowModal(true)}
           className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -282,6 +293,7 @@ export default function Customers() {
           </svg>
           Add Customer
         </button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -439,6 +451,16 @@ export default function Customers() {
                             <button
                               onClick={() => {
                                 setActionMenuOpen(null);
+                                handleViewActivities(customer);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-navy-700 hover:bg-navy-50 transition-colors"
+                            >
+                              View Activities
+                            </button>
+                            {permissions.canManageCustomers && (
+                            <button
+                              onClick={() => {
+                                setActionMenuOpen(null);
                                 setEditingCustomer(customer);
                                 setShowModal(true);
                               }}
@@ -446,13 +468,15 @@ export default function Customers() {
                             >
                               Edit Customer
                             </button>
-                            {customer.is_active && (
+                            )}
+                            {permissions.canDeleteCustomers && customer.is_active && (
                               <button
                                 onClick={async () => {
                                   setActionMenuOpen(null);
                                   try {
                                     const response = await customerService.deactivateCustomer(customer.id);
                                     if (response.success) {
+                                      showToast('Customer deactivated', 'success');
                                       loadCustomers();
                                     }
                                   } catch (err) {
@@ -464,6 +488,7 @@ export default function Customers() {
                                 Deactivate Customer
                               </button>
                             )}
+                            {permissions.canDeleteCustomers && (
                             <button
                               onClick={() => {
                                 setActionMenuOpen(null);
@@ -473,6 +498,7 @@ export default function Customers() {
                             >
                               Delete
                             </button>
+                            )}
                           </div>
                         </div>
                       )}
@@ -616,7 +642,9 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
     tax_id: customer?.tax_id || '',
     credit_limit: customer?.credit_limit || 0,
     notes: customer?.notes || '',
-    customer_type: customer?.customer_type || 'regular',
+    customer_type: (customer?.customer_type as CreateCustomerData['customer_type']) || 'retail',
+    status: (customer?.status as CreateCustomerData['status']) || (customer?.is_active === false ? 'inactive' : 'active'),
+    follow_up_date: customer?.follow_up_date ? customer.follow_up_date.split('T')[0] : '',
     is_active: customer?.is_active !== undefined ? customer.is_active : true,
   });
 
@@ -636,7 +664,10 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
       tax_id: formData.tax_id || undefined,
       credit_limit: formData.credit_limit || undefined,
       notes: formData.notes || undefined,
-      is_active: formData.is_active,
+      customer_type: formData.customer_type,
+      status: formData.status,
+      follow_up_date: formData.follow_up_date || undefined,
+      is_active: formData.status !== 'inactive',
     };
     onSave(cleanedData);
   };
@@ -660,7 +691,7 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
             </button>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form id="customer-form" onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-navy-700 mb-1">Company Name *</label>
@@ -775,27 +806,36 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
             <div>
               <label className="block text-sm font-medium text-navy-700 mb-1">Customer Type</label>
               <select
-                value={formData.customer_type || 'regular'}
-                onChange={(e) => setFormData({ ...formData, customer_type: e.target.value as any })}
+                value={formData.customer_type || 'retail'}
+                onChange={(e) => setFormData({ ...formData, customer_type: e.target.value as CreateCustomerData['customer_type'] })}
                 className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               >
-                <option value="regular">Regular</option>
-                <option value="premium">Premium</option>
-                <option value="vip">VIP</option>
-                <option value="enterprise">Enterprise</option>
+                <option value="retail">Retail</option>
+                <option value="wholesale">Wholesale</option>
+                <option value="distributor">Distributor</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-navy-700 mb-1">Status</label>
               <select
-                value={formData.is_active ? 'active' : 'inactive'}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'active' })}
+                value={formData.status || 'active'}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as CreateCustomerData['status'] })}
                 className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
               >
+                <option value="lead">Lead</option>
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-navy-700 mb-1">Follow-up Date</label>
+            <input
+              type="date"
+              value={formData.follow_up_date || ''}
+              onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
+              className="w-full border border-navy-300 rounded-lg shadow-sm-premium p-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-navy-700 mb-1">Notes</label>
@@ -817,6 +857,7 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
           </button>
           <button
             type="submit"
+            form="customer-form"
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors"
           >
             Save Customer
@@ -980,7 +1021,7 @@ function ActivityFormModal({
             </button>
           </div>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form id="activity-form" onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-navy-700 mb-1">Activity Type</label>
             <select
@@ -1050,6 +1091,7 @@ function ActivityFormModal({
           </button>
           <button
             type="submit"
+            form="activity-form"
             className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors"
           >
             Save Activity

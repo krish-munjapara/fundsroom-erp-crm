@@ -6,7 +6,7 @@ A Mini ERP + CRM Operations Portal for wholesale/distribution companies, built f
 
 This is a full-stack web application designed to manage business operations for wholesale and distribution companies. The system will handle customer relationships, inventory management, sales tracking, and operational workflows.
 
-**Important:** This project is being implemented in controlled phases. Phase 3 is currently complete, which includes core business modules for customer management, product management, inventory management, and order management.
+**Important:** This project is currently complete with all core business modules including customer management, product management, inventory management, order management, and sales challan generation.
 
 ## Technology Stack
 
@@ -66,25 +66,32 @@ This is a full-stack web application designed to manage business operations for 
 ### ✅ Phase 3 - Core Business Modules (Complete)
 - **Customer Management (CRM)**
   - Customer database schema with company info, contact details, credit limits
+  - Customer type (retail, wholesale, distributor) and status (lead, active, inactive)
+  - Follow-up date tracking for CRM activities
   - CRUD APIs for customer operations
   - Search and filter functionality
   - Customer status management (active/inactive)
   - Frontend customer list and management interface
   - Customer creation and editing forms
+  - Customer activities and follow-up tracking
 - **Product/Service Management**
   - Product database schema with SKU, pricing, categories
   - CRUD APIs for product operations
   - Product status and category management
   - Tax rate and HSN code support
+  - Unit price with current stock and minimum stock tracking
+  - Location/warehouse information
   - Frontend product management interface
   - Product creation and editing forms
+  - Stock adjustment functionality
 - **Inventory Management**
   - Inventory database schema with stock tracking
   - Stock quantity and status management
   - Stock increase/decrease operations
   - Low-stock detection and alerts
-  - Stock movement tracking
+  - Stock movement tracking with product snapshots
   - Frontend inventory dashboard
+  - Real-time inventory calculations
 - **Sales/Order Foundation**
   - Order database schema with customer linking
   - Order items with product associations
@@ -92,14 +99,207 @@ This is a full-stack web application designed to manage business operations for 
   - Order totals calculation (subtotal, tax, discount)
   - Frontend order management interface
   - Order statistics and reporting
+- **Sales Challan Module**
+  - Challan database schema with auto-generated challan numbers
+  - Challan items with product snapshots (price, quantity at time of creation)
+  - Challan status management (draft, confirmed, cancelled)
+  - Business rules: draft no stock reduction, confirmed reduces stock
+  - Stock validation: insufficient stock API error, non-negative stock prevention
+  - Transaction-safe confirmation with stock OUT movement creation
+  - Frontend challan management interface
+  - Challan statistics and reporting
 
-### 🔄 Future Phases (Not Yet Implemented)
-- Sales challan generation
+### ✅ Authentication & Authorization
+- **Role-Based Access Control (RBAC)**
+  - Four roles: Admin, Sales, Warehouse, Accounts
+  - JWT-based authentication with token verification
+  - Protected routes with authentication middleware
+  - Role-based authorization on API endpoints
+  - Frontend route protection based on user role
+  - Default users seeded for all roles (password: Admin@123)
+    - admin@fundsroom.com (Admin)
+    - sales@fundsroom.com (Sales)
+    - warehouse@fundsroom.com (Warehouse)
+    - accounts@fundsroom.com (Accounts)
+
+### ✅ Database & Migrations
+- **PostgreSQL-compatible migrations**
+  - Migration 001: Users table with authentication
+  - Migration 002: Business tables (customers, products, inventory, orders)
+  - Migration 003: CRM activities table
+  - Migration 004: Product model update (PostgreSQL 12+ compatible)
+  - Migration 005: Sales challan tables
+  - Migration 006: Customer fields (customer_type, status, follow_up_date)
+  - All migrations are idempotent and safe to re-run
+  - Automatic migration execution on server startup
+  - Seed data for default users
+
+### 🔄 Future Enhancements (Not Yet Implemented)
 - Advanced dashboard and analytics
-- PDF generation for documents
+- PDF generation for documents (challans, invoices)
 - Payment processing integration
 - Advanced reporting features
-- Deployment configuration
+- Email notifications for follow-ups
+- Multi-warehouse support
+
+## Test Credentials
+
+For testing purposes, the following users are seeded (password: `Admin@123`):
+
+| Role | Email | Permissions |
+|------|-------|------------|
+| Admin | admin@fundsroom.com | Full access to all features |
+| Sales | sales@fundsroom.com | Create/update customers, create/update orders, create/update challans |
+| Warehouse | warehouse@fundsroom.com | Create/update products, adjust stock, record inventory movements |
+| Accounts | accounts@fundsroom.com | View all data, financial reports |
+
+**Security Note:** Change all default passwords in production!
+
+## Deployment Guide
+
+### Prerequisites for Production
+- Node.js (v18 or higher)
+- PostgreSQL database (Neon, AWS RDS, or self-hosted)
+- Domain name and SSL certificate
+- Process manager (PM2 recommended)
+
+### Backend Deployment
+
+1. **Build the backend:**
+```bash
+cd backend
+npm run build
+```
+
+2. **Set production environment variables:**
+```env
+PORT=5000
+NODE_ENV=production
+DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require
+JWT_SECRET=<generate-strong-random-secret>
+FRONTEND_URL=https://yourdomain.com
+```
+
+3. **Install PM2 (process manager):**
+```bash
+npm install -g pm2
+```
+
+4. **Start the backend with PM2:**
+```bash
+pm2 start dist/server.js --name fundsroom-backend
+pm2 save
+pm2 startup
+```
+
+### Frontend Deployment
+
+1. **Build the frontend:**
+```bash
+cd frontend
+npm run build
+```
+
+2. **Set production environment variables:**
+```env
+VITE_API_URL=https://api.yourdomain.com
+```
+
+3. **Deploy to hosting service:**
+   - **Vercel/Netlify:** Upload the `dist` folder
+   - **Nginx/Apache:** Serve static files from `dist` folder
+   - **AWS S3 + CloudFront:** Upload to S3 bucket
+
+### Nginx Configuration Example
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    # Frontend
+    location / {
+        root /path/to/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API
+    location /api {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+### Database Setup
+
+1. **Create production database:**
+```sql
+CREATE DATABASE fundsroom_erp_crm;
+```
+
+2. **Run migrations:**
+- Migrations run automatically on backend startup
+- Ensure `DATABASE_URL` is correctly configured
+- Verify migration logs in PM2 logs
+
+3. **Seed admin user:**
+- The seed script runs automatically
+- Default admin: `admin@fundsroom.com` / `Admin@123`
+- **Change the password immediately after first login!**
+
+### Security Checklist
+- [ ] Change default admin password
+- [ ] Use strong JWT_SECRET (generate with: `openssl rand -base64 32`)
+- [ ] Enable SSL/HTTPS
+- [ ] Configure CORS properly
+- [ ] Set up firewall rules
+- [ ] Enable database backups
+- [ ] Monitor logs regularly
+- [ ] Set up log rotation
+
+### Monitoring & Maintenance
+
+**View PM2 logs:**
+```bash
+pm2 logs fundsroom-backend
+pm2 logs fundsroom-frontend
+```
+
+**Restart services:**
+```bash
+pm2 restart fundsroom-backend
+```
+
+**Update application:**
+```bash
+# Backend
+cd backend
+git pull
+npm install
+npm run build
+pm2 restart fundsroom-backend
+
+# Frontend
+cd frontend
+git pull
+npm install
+npm run build
+# Redeploy to hosting service
+```
 
 ## Project Structure
 

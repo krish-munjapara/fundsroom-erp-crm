@@ -24,7 +24,7 @@ export const registerSchema = Joi.object({
     'string.max': 'Last name must not exceed 100 characters',
     'any.required': 'Last name is required',
   }),
-  role: Joi.string().valid('admin', 'manager', 'user').optional(),
+  role: Joi.string().valid('admin', 'sales', 'warehouse', 'accounts').optional(),
 });
 
 export const loginSchema = Joi.object({

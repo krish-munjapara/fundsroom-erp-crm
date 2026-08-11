@@ -124,15 +124,13 @@ WHERE created_by IS NULL;
 -- Set default and NOT NULL only if not already set
 DO $$
 BEGIN
-    -- Check if column has a default
+    -- Check if column has a default using information_schema (PostgreSQL-compatible)
     IF NOT EXISTS (
         SELECT 1
-        FROM pg_attrdef
-        JOIN pg_attribute ON pg_attrdef.adnum = pg_attribute.attnum
-        JOIN pg_class ON pg_attribute.attrelid = pg_class.oid
-        WHERE pg_class.relname = 'stock_movements'
-        AND pg_attribute.attname = 'created_by'
-        AND pg_attrdef.adsrc = '1'
+        FROM information_schema.columns
+        WHERE table_name = 'stock_movements'
+        AND column_name = 'created_by'
+        AND column_default IS NOT NULL
     ) THEN
         ALTER TABLE stock_movements
         ALTER COLUMN created_by SET DEFAULT 1;
@@ -164,15 +162,13 @@ WHERE notes IS NULL;
 -- Set default and NOT NULL only if not already set
 DO $$
 BEGIN
-    -- Check if column has a default
+    -- Check if column has a default using information_schema (PostgreSQL-compatible)
     IF NOT EXISTS (
         SELECT 1
-        FROM pg_attrdef
-        JOIN pg_attribute ON pg_attrdef.adnum = pg_attribute.attnum
-        JOIN pg_class ON pg_attribute.attrelid = pg_class.oid
-        WHERE pg_class.relname = 'stock_movements'
-        AND pg_attribute.attname = 'notes'
-        AND pg_attrdef.adsrc = '''Stock adjustment'''
+        FROM information_schema.columns
+        WHERE table_name = 'stock_movements'
+        AND column_name = 'notes'
+        AND column_default IS NOT NULL
     ) THEN
         ALTER TABLE stock_movements
         ALTER COLUMN notes SET DEFAULT 'Stock adjustment';

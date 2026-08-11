@@ -5,7 +5,7 @@ jest.mock('../config/database');
 
 describe('OrderService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('getAllOrders', () => {
@@ -33,31 +33,35 @@ describe('OrderService', () => {
 
   describe('getOrderById', () => {
     test('should return order with items', async () => {
-      const mockOrder = {
-        id: 1,
-        order_number: 'ORD-001',
-        customer_name: 'Company A',
-        total_amount: 1770,
-        items: [
-          {
-            id: 1,
-            product_id: 1,
-            quantity: 10,
-            unit_price: 150,
-            subtotal: 1500,
-            total_amount: 1770,
-            product_name: 'Widget A',
-          },
-        ],
-      };
+      const mockItems = [
+        {
+          id: 1,
+          product_id: 1,
+          quantity: 10,
+          unit_price: 150,
+          subtotal: 1500,
+          total_amount: 1770,
+          product_name: 'Widget A',
+        },
+      ];
 
       (pool.query as jest.Mock)
-        .mockResolvedValueOnce({ rows: [mockOrder] })
-        .mockResolvedValueOnce({ rows: mockOrder.items });
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 1,
+            order_number: 'ORD-001',
+            customer_name: 'Company A',
+            total_amount: 1770,
+          }],
+        })
+        .mockResolvedValueOnce({ rows: mockItems });
 
       const result = await OrderService.getOrderById(1);
 
-      expect(result).toEqual(mockOrder);
+      expect(result?.order_number).toBe('ORD-001');
+      expect(result?.items).toHaveLength(1);
+      expect(result?.total_items).toBe(1);
+      expect(result?.total_quantity).toBe(10);
     });
 
     test('should return null when order not found', async () => {
@@ -72,35 +76,33 @@ describe('OrderService', () => {
   });
 
   describe('updateOrderStatus', () => {
-    test('should update order status successfully', async () => {
-      const mockOrder = {
+    test('should update non-confirmed status successfully', async () => {
+      const pendingOrder = {
         id: 1,
-        status: 'confirmed',
-        updated_at: new Date(),
+        status: 'pending',
+        created_by: 1,
+        customer_id: 1,
       };
 
-      (pool.query as jest.Mock).mockResolvedValue({
-        rows: [mockOrder],
-      });
+      (pool.query as jest.Mock)
+        .mockResolvedValueOnce({ rows: [pendingOrder] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: 1, status: 'processing' }] });
 
-      const result = await OrderService.updateOrderStatus(1, 'confirmed');
+      const result = await OrderService.updateOrderStatus(1, 'processing', 1);
 
-      expect(result).toEqual(mockOrder);
-      expect(pool.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE orders'),
-        expect.any(Array)
-      );
+      expect(result).toEqual({ id: 1, status: 'processing' });
     });
   });
 
   describe('getOrderStats', () => {
     test('should return order statistics', async () => {
       const mockStats = {
-        total_orders: 25,
-        pending_orders: 5,
-        confirmed_orders: 10,
-        delivered_orders: 8,
-        total_revenue: 42500,
+        total_orders: '25',
+        pending_orders: '5',
+        confirmed_orders: '10',
+        delivered_orders: '8',
+        total_revenue: '42500',
       };
 
       (pool.query as jest.Mock).mockResolvedValue({
@@ -115,10 +117,17 @@ describe('OrderService', () => {
   });
 
   describe('deleteOrder', () => {
-    test('should delete order successfully', async () => {
-      (pool.query as jest.Mock).mockResolvedValue({
-        rowCount: 1,
-      });
+    test('should delete pending order successfully', async () => {
+      (pool.query as jest.Mock)
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 1,
+            status: 'pending',
+            customer_id: 1,
+          }],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1 });
 
       const result = await OrderService.deleteOrder(1);
 

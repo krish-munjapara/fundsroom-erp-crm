@@ -15,13 +15,13 @@ const router = Router();
 // All product routes require authentication
 router.use(authenticate);
 
-// Routes for authenticated users
-router.post('/', createProduct);
+// Routes for Warehouse and Admin
+router.post('/', authorize('admin', 'warehouse'), createProduct);
 router.get('/', getAllProducts);
 router.get('/active', getActiveProducts);
 router.get('/:id', getProductById);
-router.put('/:id', updateProduct);
-router.patch('/:id/adjust-stock', adjustStock);
+router.put('/:id', authorize('admin', 'warehouse'), updateProduct);
+router.patch('/:id/adjust-stock', authorize('admin', 'warehouse'), adjustStock);
 
 // Admin-only routes
 router.delete('/:id', authorize('admin'), deleteProduct);

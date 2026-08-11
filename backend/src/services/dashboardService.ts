@@ -2,32 +2,48 @@ import { pool } from '../config/database';
 import { DashboardStats, RecentOrder, RecentActivity } from '../types';
 
 export class DashboardService {
-  static async getDashboardStats(period: string = 'all'): Promise<DashboardStats> {
-    let dateFilter = '';
-    const now = new Date();
-    
-    if (period === 'today') {
-      dateFilter = `AND DATE(o.created_at) = CURRENT_DATE`;
-    } else if (period === 'week') {
-      dateFilter = `AND o.created_at >= DATE_TRUNC('week', CURRENT_DATE)`;
-    } else if (period === 'month') {
-      dateFilter = `AND o.created_at >= DATE_TRUNC('month', CURRENT_DATE)`;
+  private static buildDateFilter(period: string, startDate?: string, endDate?: string): { clause: string; values: string[] } {
+    if (startDate && endDate) {
+      return {
+        clause: `AND o.created_at >= $1::date AND o.created_at < ($2::date + INTERVAL '1 day')`,
+        values: [startDate, endDate],
+      };
     }
+
+    const filters: Record<string, string> = {
+      today: `AND DATE(o.created_at) = CURRENT_DATE`,
+      week: `AND o.created_at >= CURRENT_DATE - INTERVAL '7 days'`,
+      month: `AND o.created_at >= CURRENT_DATE - INTERVAL '30 days'`,
+      '3months': `AND o.created_at >= CURRENT_DATE - INTERVAL '3 months'`,
+      '6months': `AND o.created_at >= CURRENT_DATE - INTERVAL '6 months'`,
+      year: `AND o.created_at >= CURRENT_DATE - INTERVAL '12 months'`,
+    };
+
+    if (period !== 'all' && filters[period]) {
+      return { clause: filters[period], values: [] };
+    }
+
+    return { clause: '', values: [] };
+  }
+
+  static async getDashboardStats(period: string = 'all', startDate?: string, endDate?: string): Promise<DashboardStats> {
+    const { clause: dateFilter, values } = this.buildDateFilter(period, startDate, endDate);
+    const useFilter = period !== 'all' || (startDate && endDate);
 
     const query = `
       SELECT
         (SELECT COUNT(*) FROM customers WHERE is_active = true) as total_customers,
         (SELECT COUNT(*) FROM products WHERE is_active = true) as total_products,
-        (SELECT COUNT(*) FROM orders o WHERE 1=1 ${period !== 'all' ? dateFilter : ''}) as total_orders,
-        COALESCE((SELECT SUM(total_amount) FROM orders o WHERE status != 'cancelled' ${period !== 'all' ? dateFilter : ''}), 0) as total_sales,
-        (SELECT COUNT(*) FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.available_quantity <= p.reorder_level AND p.is_active = true) as low_stock_count,
+        (SELECT COUNT(*) FROM orders o WHERE 1=1 ${useFilter ? dateFilter.replace(/o\./g, 'o.') : ''}) as total_orders,
+        COALESCE((SELECT SUM(total_amount) FROM orders o WHERE status != 'cancelled' ${useFilter ? dateFilter : ''}), 0) as total_sales,
+        (SELECT COUNT(*) FROM products p WHERE p.is_active = true AND COALESCE(p.current_stock, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)) as low_stock_count,
         (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'confirmed') as confirmed_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'delivered') as delivered_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'cancelled') as cancelled_orders
     `;
 
-    const result = await pool.query(query);
+    const result = values.length > 0 ? await pool.query(query, values) : await pool.query(query);
     return result.rows[0];
   }
 
@@ -84,22 +100,34 @@ export class DashboardService {
     return summary;
   }
 
-  static async getSalesTrend(period: string = 'month'): Promise<any[]> {
+  static async getSalesTrend(period: string = 'month', startDate?: string, endDate?: string): Promise<any[]> {
     let groupBy = 'DATE(created_at)';
     let limit = '30';
-    
-    if (period === 'week') {
+    let dateCondition = `created_at >= CURRENT_DATE - INTERVAL '30 days'`;
+
+    if (startDate && endDate) {
+      dateCondition = `created_at >= '${startDate}'::date AND created_at < ('${endDate}'::date + INTERVAL '1 day')`;
+      groupBy = 'DATE(created_at)';
+      limit = '90';
+    } else if (period === 'today') {
+      dateCondition = `DATE(created_at) = CURRENT_DATE`;
+      limit = '1';
+    } else if (period === 'week') {
       groupBy = 'DATE(created_at)';
       limit = '7';
+      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '7 days'`;
     } else if (period === '3months') {
-      groupBy = 'DATE_TRUNC("week", created_at)';
+      groupBy = 'DATE_TRUNC(\'week\', created_at)';
       limit = '12';
+      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '3 months'`;
     } else if (period === '6months') {
-      groupBy = 'DATE_TRUNC("month", created_at)';
+      groupBy = 'DATE_TRUNC(\'month\', created_at)';
       limit = '6';
+      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '6 months'`;
     } else if (period === 'year') {
-      groupBy = 'DATE_TRUNC("month", created_at)';
+      groupBy = 'DATE_TRUNC(\'month\', created_at)';
       limit = '12';
+      dateCondition = `created_at >= CURRENT_DATE - INTERVAL '12 months'`;
     }
 
     const query = `
@@ -109,13 +137,7 @@ export class DashboardService {
         COUNT(*) as orders
       FROM orders
       WHERE status != 'cancelled'
-        AND created_at >= CASE
-          WHEN '${period}' = 'week' THEN CURRENT_DATE - INTERVAL '7 days'
-          WHEN '${period}' = '3months' THEN CURRENT_DATE - INTERVAL '3 months'
-          WHEN '${period}' = '6months' THEN CURRENT_DATE - INTERVAL '6 months'
-          WHEN '${period}' = 'year' THEN CURRENT_DATE - INTERVAL '12 months'
-          ELSE CURRENT_DATE - INTERVAL '30 days'
-        END
+        AND ${dateCondition}
       GROUP BY ${groupBy}
       ORDER BY date ASC
       LIMIT ${limit}
@@ -152,14 +174,14 @@ export class DashboardService {
         p.id,
         p.name,
         p.sku,
-        i.available_quantity as current_stock,
-        p.reorder_level as min_stock,
-        p.reorder_level - i.available_quantity as needed
-      FROM inventory i
-      JOIN products p ON i.product_id = p.id
-      WHERE i.available_quantity <= p.reorder_level
+        COALESCE(p.current_stock, i.available_quantity, 0) as current_stock,
+        COALESCE(p.minimum_stock, p.reorder_level, 10) as min_stock,
+        GREATEST(COALESCE(p.minimum_stock, p.reorder_level, 10) - COALESCE(p.current_stock, i.available_quantity, 0), 0) as needed
+      FROM products p
+      LEFT JOIN inventory i ON i.product_id = p.id
+      WHERE COALESCE(p.current_stock, i.available_quantity, 0) <= COALESCE(p.minimum_stock, p.reorder_level, 10)
         AND p.is_active = true
-      ORDER BY (p.reorder_level - i.available_quantity) DESC
+      ORDER BY needed DESC
       LIMIT $1
     `;
 

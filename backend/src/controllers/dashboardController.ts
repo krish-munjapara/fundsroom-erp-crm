@@ -7,7 +7,9 @@ import { dashboardParamsSchema } from '../validators';
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const period = (req.query.period as string) || 'all';
-    const stats = await DashboardService.getDashboardStats(period);
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const stats = await DashboardService.getDashboardStats(period, startDate, endDate);
 
     res.status(200).json({
       success: true,
@@ -110,7 +112,9 @@ export const getOrderStatusSummary = async (req: AuthRequest, res: Response): Pr
 export const getSalesTrend = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const period = (req.query.period as string) || 'month';
-    const trend = await DashboardService.getSalesTrend(period);
+    const startDate = req.query.start_date as string | undefined;
+    const endDate = req.query.end_date as string | undefined;
+    const trend = await DashboardService.getSalesTrend(period, startDate, endDate);
 
     res.status(200).json({
       success: true,

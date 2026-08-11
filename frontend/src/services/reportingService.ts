@@ -1,24 +1,32 @@
 import { apiService } from './api';
 
+function buildQueryString(filters?: Record<string, string | number | undefined>): string {
+  if (!filters) return '';
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      params.append(key, String(value));
+    }
+  });
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
 export const reportingService = {
-  async getSalesReport(filters?: any) {
-    const params = new URLSearchParams(filters as any).toString();
-    return apiService.get(`/api/reports/sales${params ? `?${params}` : ''}`);
+  async getSalesReport(filters?: Record<string, string>) {
+    return apiService.get(`/api/reports/sales${buildQueryString(filters)}`);
   },
 
-  async getCustomerReport(filters?: any) {
-    const params = new URLSearchParams(filters as any).toString();
-    return apiService.get(`/api/reports/customers${params ? `?${params}` : ''}`);
+  async getCustomerReport(filters?: Record<string, string>) {
+    return apiService.get(`/api/reports/customers${buildQueryString(filters)}`);
   },
 
-  async getProductPerformanceReport(filters?: any) {
-    const params = new URLSearchParams(filters as any).toString();
-    return apiService.get(`/api/reports/products${params ? `?${params}` : ''}`);
+  async getProductPerformanceReport(filters?: Record<string, string>) {
+    return apiService.get(`/api/reports/products${buildQueryString(filters)}`);
   },
 
-  async getInventoryReport(filters?: any) {
-    const params = new URLSearchParams(filters as any).toString();
-    return apiService.get(`/api/reports/inventory${params ? `?${params}` : ''}`);
+  async getInventoryReport(filters?: Record<string, string>) {
+    return apiService.get(`/api/reports/inventory${buildQueryString(filters)}`);
   },
 
   async getStockMovementSummary(productId?: number) {

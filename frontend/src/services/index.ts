@@ -6,7 +6,7 @@ export type { Product, CreateProductData, UpdateProductData } from './productSer
 export { inventoryService } from './inventoryService';
 export type { Inventory, StockMovement } from './inventoryService';
 export { orderService } from './orderService';
-export type { Order, OrderItem, CreateOrderData } from './orderService';
+export type { Order, OrderItem, CreateOrderData, OrderStats } from './orderService';
 export { authService } from './authService';
 export type { LoginData, RegisterData } from './authService';
 export type { ApiResponse } from './api';
@@ -14,3 +14,5 @@ export { dashboardService } from './dashboardService';
 export { reportingService } from './reportingService';
 export { customerActivityService } from './customerActivityService';
 export type { CustomerActivity, CreateCustomerActivityData } from './customerActivityService';
+export { challanService } from './challanService';
+export type { Challan, ChallanItem, CreateChallanData, UpdateChallanData } from './challanService';

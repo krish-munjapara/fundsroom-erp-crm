@@ -38,7 +38,7 @@ export interface AuthResponse {
   };
 }
 
-export type UserRole = 'admin' | 'manager' | 'user';
+export type UserRole = 'admin' | 'sales' | 'warehouse' | 'accounts';
 
 // Customer Types
 export interface Customer {
@@ -53,9 +53,11 @@ export interface Customer {
   postal_code?: string;
   country: string;
   tax_id?: string;
+  customer_type: 'retail' | 'wholesale' | 'distributor';
+  status: 'lead' | 'active' | 'inactive';
+  follow_up_date?: Date;
   credit_limit: number;
   current_balance: number;
-  is_active: boolean;
   notes?: string;
   created_by?: number;
   updated_by?: number;
@@ -74,6 +76,9 @@ export interface CreateCustomerDto {
   postal_code?: string;
   country?: string;
   tax_id?: string;
+  customer_type?: 'retail' | 'wholesale' | 'distributor';
+  status?: 'lead' | 'active' | 'inactive';
+  follow_up_date?: string;
   credit_limit?: number;
   notes?: string;
 }
@@ -89,6 +94,9 @@ export interface UpdateCustomerDto {
   postal_code?: string;
   country?: string;
   tax_id?: string;
+  customer_type?: 'retail' | 'wholesale' | 'distributor';
+  status?: 'lead' | 'active' | 'inactive';
+  follow_up_date?: string;
   credit_limit?: number;
   current_balance?: number;
   is_active?: boolean;
@@ -208,18 +216,16 @@ export interface UpdateOrderDto {
   customer_id?: number;
   order_date?: Date;
   delivery_date?: Date;
-  status?: string;
-  subtotal?: number;
-  tax_amount?: number;
-  discount_amount?: number;
-  total_amount?: number;
   notes?: string;
+  items?: OrderItemDto[];
 }
 
 export interface OrderItem {
   id: number;
   order_id: number;
   product_id: number;
+  product_name?: string;
+  sku?: string;
   quantity: number;
   unit_price: number;
   tax_rate: number;
@@ -326,8 +332,23 @@ export interface SalesReport {
   total_orders: number;
   total_revenue: number;
   average_order_value: number;
+  pending_orders: number;
+  confirmed_orders: number;
   orders_by_status: Record<string, number>;
   revenue_by_month: Array<{ month: string; revenue: number }>;
+  sales_by_customer: Array<{
+    customer_id: number;
+    company_name: string;
+    total_orders: number;
+    total_revenue: number;
+  }>;
+  sales_by_product: Array<{
+    product_id: number;
+    product_name: string;
+    sku: string;
+    total_quantity: number;
+    total_revenue: number;
+  }>;
 }
 
 export interface CustomerReport {
@@ -389,6 +410,7 @@ export interface PaginationParams {
   page?: number;
   limit?: number;
   search?: string;
+  status?: string;
   sort?: string;
   order?: 'asc' | 'desc';
 }
@@ -401,4 +423,57 @@ export interface PaginatedResponse<T> {
     total: number;
     pages: number;
   };
+}
+
+// Challan Types
+export interface Challan {
+  id: number;
+  challan_number: string;
+  customer_id: number;
+  status: 'draft' | 'confirmed' | 'cancelled';
+  total_items: number;
+  total_quantity: number;
+  total_amount: number;
+  notes?: string;
+  created_by: number;
+  created_at: Date;
+  updated_at: Date;
+  confirmed_at?: Date;
+  cancelled_at?: Date;
+  customer?: Customer;
+  items?: ChallanItem[];
+}
+
+export interface ChallanItem {
+  id: number;
+  challan_id: number;
+  product_id: number;
+  product_name: string;
+  sku: string;
+  unit_price: number;
+  quantity: number;
+  total: number;
+  created_at: Date;
+}
+
+export interface CreateChallanDto {
+  customer_id: number;
+  items: Array<{
+    product_id: number;
+    quantity: number;
+  }>;
+  notes?: string;
+}
+
+export interface UpdateChallanDto {
+  customer_id?: number;
+  items?: Array<{
+    product_id: number;
+    quantity: number;
+  }>;
+  notes?: string;
+}
+
+export interface ConfirmChallanDto {
+  // No additional fields needed for confirmation
 }

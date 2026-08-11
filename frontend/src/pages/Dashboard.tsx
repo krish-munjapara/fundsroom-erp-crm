@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context';
+import { useAuth, usePermissions } from '../context';
 import { dashboardService } from '../services/dashboardService';
 import { formatCompactCurrency, formatDate } from '../utils/formatters';
 import { KPICard } from '../components/ui';
@@ -64,6 +64,7 @@ interface LowStockProduct {
 
 export default function Dashboard({ onPageChange }: DashboardProps = {}) {
   const { isAuthenticated, user } = useAuth();
+  const permissions = usePermissions();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
@@ -73,6 +74,8 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<'today' | '7d' | '30d' | '3m' | '6m' | '1y' | 'custom'>('today');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
   const [chartView, setChartView] = useState<'revenue' | 'orders'>('revenue');
 
   const getGreeting = () => {
@@ -113,8 +116,9 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (dateFilter === 'custom' && (!customStartDate || !customEndDate)) return;
     loadDashboardData();
-  }, [isAuthenticated, dateFilter]);
+  }, [isAuthenticated, dateFilter, customStartDate, customEndDate]);
 
   const loadDashboardData = async () => {
     try {
@@ -131,13 +135,16 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
         'custom': 'all'
       };
 
-      const chartPeriod = periodMap[dateFilter] || 'month';
+      const chartPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'month');
+      const statsPeriod = dateFilter === 'custom' ? 'all' : (periodMap[dateFilter] || 'all');
+      const startDate = dateFilter === 'custom' ? customStartDate : undefined;
+      const endDate = dateFilter === 'custom' ? customEndDate : undefined;
 
       const [statsRes, ordersRes, activitiesRes, trendRes, topProductsRes, lowStockRes] = await Promise.all([
-        dashboardService.getStats(periodMap[dateFilter] || 'all'),
+        dashboardService.getStats(statsPeriod, startDate, endDate),
         dashboardService.getRecentOrders(5),
         dashboardService.getRecentActivities(5),
-        dashboardService.getSalesTrend(chartPeriod),
+        dashboardService.getSalesTrend(chartPeriod, startDate, endDate),
         dashboardService.getTopProducts(5),
         dashboardService.getLowStockProducts(10),
       ]);
@@ -285,6 +292,32 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
           </button>
         </div>
       </div>
+
+      {dateFilter === 'custom' && (
+        <div className="flex flex-wrap items-end gap-3 bg-white rounded-xl border border-navy-200 shadow-premium p-4">
+          <div>
+            <label className="block text-xs font-medium text-navy-500 mb-1">Start Date</label>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              className="px-3 py-2 border border-navy-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-navy-500 mb-1">End Date</label>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              className="px-3 py-2 border border-navy-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+          {customStartDate && customEndDate && customStartDate > customEndDate && (
+            <p className="text-sm text-danger-600 pb-2">Start date must be before end date.</p>
+          )}
+        </div>
+      )}
 
       {/* Primary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -670,10 +703,18 @@ export default function Dashboard({ onPageChange }: DashboardProps = {}) {
           <span className="text-xs text-navy-500">Common tasks</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <QuickActionButton icon={<UserPlusIcon className="w-5 h-5" />} label="Add Customer" onClick={() => onPageChange?.('customers')} />
-          <QuickActionButton icon={<PackagePlusIcon className="w-5 h-5" />} label="Add Product" onClick={() => onPageChange?.('products')} />
-          <QuickActionButton icon={<BoxesIcon className="w-5 h-5" />} label="Stock Adjustment" onClick={() => onPageChange?.('inventory')} />
-          <QuickActionButton icon={<ShoppingCartIcon className="w-5 h-5" />} label="Create Order" onClick={() => onPageChange?.('orders')} />
+          {permissions.canManageCustomers && (
+            <QuickActionButton icon={<UserPlusIcon className="w-5 h-5" />} label="Add Customer" onClick={() => onPageChange?.('customers')} />
+          )}
+          {permissions.canManageProducts && (
+            <QuickActionButton icon={<PackagePlusIcon className="w-5 h-5" />} label="Add Product" onClick={() => onPageChange?.('products')} />
+          )}
+          {permissions.canManageInventory && (
+            <QuickActionButton icon={<BoxesIcon className="w-5 h-5" />} label="Stock Adjustment" onClick={() => onPageChange?.('inventory')} />
+          )}
+          {permissions.canManageOrders && (
+            <QuickActionButton icon={<ShoppingCartIcon className="w-5 h-5" />} label="Create Order" onClick={() => onPageChange?.('orders')} />
+          )}
         </div>
       </div>
     </div>

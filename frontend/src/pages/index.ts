@@ -4,3 +4,6 @@ export { default as Inventory } from './Inventory';
 export { default as Orders } from './Orders';
 export { default as Dashboard } from './Dashboard';
 export { default as Reports } from './Reports';
+export { default as Challans } from './Challans';
+export { default as Settings } from './Settings';
+export { default as Help } from './Help';

@@ -4,6 +4,21 @@ import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 import { createOrderSchema, updateOrderSchema, updateOrderStatusSchema, paginationSchema } from '../validators';
 
+const handleError = (error: unknown, res: Response): void => {
+  if (error instanceof AppError) {
+    res.status(error.statusCode).json({
+      success: false,
+      message: error.message,
+    });
+    return;
+  }
+
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+  });
+};
+
 export const createOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { error, value } = createOrderSchema.validate(req.body);
@@ -23,17 +38,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       data: order,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -52,17 +57,7 @@ export const getAllOrders = async (req: AuthRequest, res: Response): Promise<voi
       pagination: result.pagination,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -85,17 +80,7 @@ export const getOrderById = async (req: AuthRequest, res: Response): Promise<voi
       data: order,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -113,17 +98,7 @@ export const getOrderByOrderNumber = async (req: AuthRequest, res: Response): Pr
       data: order,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -141,10 +116,11 @@ export const updateOrder = async (req: AuthRequest, res: Response): Promise<void
       throw new AppError(error.details[0].message, 400);
     }
 
-    const order = await OrderService.updateOrder(orderId, value);
-    if (!order) {
-      throw new AppError('Order not found', 404);
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
     }
+
+    const order = await OrderService.updateOrder(orderId, value, req.user.id);
 
     res.status(200).json({
       success: true,
@@ -152,17 +128,32 @@ export const updateOrder = async (req: AuthRequest, res: Response): Promise<void
       data: order,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
+    handleError(error, res);
+  }
+};
+
+export const confirmOrder = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const orderId = parseInt(id);
+
+    if (isNaN(orderId)) {
+      throw new AppError('Invalid order ID', 400);
     }
+
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const order = await OrderService.confirmOrder(orderId, req.user.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Order confirmed successfully',
+      data: order,
+    });
+  } catch (error) {
+    handleError(error, res);
   }
 };
 
@@ -180,7 +171,11 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
       throw new AppError(error.details[0].message, 400);
     }
 
-    const order = await OrderService.updateOrderStatus(orderId, value.status);
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    const order = await OrderService.updateOrderStatus(orderId, value.status, req.user.id);
     if (!order) {
       throw new AppError('Order not found', 404);
     }
@@ -191,17 +186,7 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
       data: order,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -224,17 +209,7 @@ export const deleteOrder = async (req: AuthRequest, res: Response): Promise<void
       message: 'Order deleted successfully',
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -254,17 +229,7 @@ export const getOrdersByCustomerId = async (req: AuthRequest, res: Response): Pr
       data: orders,
     });
   } catch (error) {
-    if (error instanceof AppError) {
-      res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-      });
-    }
+    handleError(error, res);
   }
 };
 
@@ -277,9 +242,6 @@ export const getOrderStats = async (req: AuthRequest, res: Response): Promise<vo
       data: stats,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    handleError(error, res);
   }
 };

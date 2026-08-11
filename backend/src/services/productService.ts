@@ -19,10 +19,10 @@ export class ProductService {
 
     const query = `
       INSERT INTO products (
-        sku, name, description, category, unit_price, current_stock,
-        minimum_stock, location, warehouse, is_active, created_by
+        sku, name, description, category, unit_price, base_price, selling_price,
+        current_stock, minimum_stock, location, warehouse, is_active, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, $5, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
 
@@ -142,35 +142,61 @@ export class ProductService {
       is_active,
     } = updates;
 
+    // Build dynamic SET clause based on provided fields
+    const setClauses: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (sku !== undefined) {
+      setClauses.push(`sku = $${paramIndex++}`);
+      values.push(sku);
+    }
+    if (name !== undefined) {
+      setClauses.push(`name = $${paramIndex++}`);
+      values.push(name);
+    }
+    if (description !== undefined) {
+      setClauses.push(`description = $${paramIndex++}`);
+      values.push(description);
+    }
+    if (category !== undefined) {
+      setClauses.push(`category = $${paramIndex++}`);
+      values.push(category);
+    }
+    if (unit_price !== undefined) {
+      setClauses.push(`unit_price = $${paramIndex++}`);
+      values.push(unit_price);
+      setClauses.push(`base_price = $${paramIndex++}`);
+      values.push(unit_price);
+      setClauses.push(`selling_price = $${paramIndex++}`);
+      values.push(unit_price);
+    }
+    if (minimum_stock !== undefined) {
+      setClauses.push(`minimum_stock = $${paramIndex++}`);
+      values.push(minimum_stock);
+    }
+    if (location !== undefined) {
+      setClauses.push(`location = $${paramIndex++}`);
+      values.push(location);
+    }
+    if (warehouse !== undefined) {
+      setClauses.push(`warehouse = $${paramIndex++}`);
+      values.push(warehouse);
+    }
+    if (is_active !== undefined) {
+      setClauses.push(`is_active = $${paramIndex++}`);
+      values.push(is_active);
+    }
+
+    setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
     const query = `
       UPDATE products
-      SET 
-        sku = COALESCE($1, sku),
-        name = COALESCE($2, name),
-        description = COALESCE($3, description),
-        category = COALESCE($4, category),
-        unit_price = COALESCE($5, unit_price),
-        minimum_stock = COALESCE($6, minimum_stock),
-        location = COALESCE($7, location),
-        warehouse = COALESCE($8, warehouse),
-        is_active = COALESCE($9, is_active),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $10
+      SET ${setClauses.join(', ')}
+      WHERE id = $${paramIndex}
       RETURNING *
     `;
-
-    const values = [
-      sku,
-      name,
-      description,
-      category,
-      unit_price,
-      minimum_stock,
-      location,
-      warehouse,
-      is_active,
-      id,
-    ];
 
     const result = await pool.query(query, values);
     return result.rows[0] || null;

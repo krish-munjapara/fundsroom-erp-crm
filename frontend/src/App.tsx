@@ -1,24 +1,39 @@
-import { useState } from 'react'
-import { AuthProvider, useAuth } from './context'
-import { Customers, Products, Inventory, Orders, Dashboard, Reports } from './pages'
-import { ErrorBoundary } from './components/ErrorBoundary'
+import { useState, useEffect } from 'react'
+import { useAuth, usePermissions, useToast } from './context'
+import { Customers, Products, Inventory, Orders, Dashboard, Reports, Challans, Settings, Help } from './pages'
 import AppLayout from './components/layout/AppLayout'
 import { FundsroomLogo } from './components/ui'
+import { canAccessPage, getDefaultPageForRole } from './utils/permissions'
 import './App.css'
 
 function App() {
-  return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <MainApp />
-      </AuthProvider>
-    </ErrorBoundary>
-  )
+  return <MainApp />
 }
 
 function MainApp() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, logout, loading } = useAuth()
+  const permissions = usePermissions()
   const [currentPage, setCurrentPage] = useState('dashboard')
+
+  useEffect(() => {
+    if (user && !canAccessPage(user.role, currentPage)) {
+      setCurrentPage(getDefaultPageForRole(user.role))
+    }
+  }, [user, currentPage])
+
+  const handlePageChange = (page: string) => {
+    if (canAccessPage(user?.role, page)) {
+      setCurrentPage(page)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-navy-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
     return <LoginPage />
@@ -30,8 +45,11 @@ function MainApp() {
       case 'customers': return 'Customers'
       case 'products': return 'Products'
       case 'inventory': return 'Inventory'
+      case 'challans': return 'Sales Challans'
       case 'orders': return 'Orders'
       case 'reports': return 'Reports'
+      case 'settings': return 'Settings'
+      case 'help': return 'Help & Support'
       default: return 'Dashboard'
     }
   }
@@ -39,23 +57,42 @@ function MainApp() {
   return (
     <AppLayout
       currentPage={currentPage}
-      onPageChange={setCurrentPage}
+      onPageChange={handlePageChange}
       pageTitle={getPageTitle()}
-      user={user ? { first_name: user.first_name, last_name: user.last_name, email: user.email } : undefined}
+      user={user ? { first_name: user.first_name, last_name: user.last_name, email: user.email, role: user.role } : undefined}
       onLogout={logout}
     >
-      {currentPage === 'dashboard' && <Dashboard onPageChange={setCurrentPage} />}
+      {currentPage === 'dashboard' && <Dashboard onPageChange={handlePageChange} />}
       {currentPage === 'customers' && <Customers />}
       {currentPage === 'products' && <Products />}
       {currentPage === 'inventory' && <Inventory />}
+      {currentPage === 'challans' && <Challans />}
       {currentPage === 'orders' && <Orders />}
-      {currentPage === 'reports' && <Reports />}
+      {currentPage === 'reports' && permissions.canViewReports && <Reports />}
+      {currentPage === 'settings' && permissions.canAccessSettings && <Settings />}
+      {currentPage === 'help' && <Help />}
+      {currentPage === 'reports' && !permissions.canViewReports && (
+        <AccessDenied message="Your role does not have access to Reports." />
+      )}
+      {currentPage === 'settings' && !permissions.canAccessSettings && (
+        <AccessDenied message="Settings are available to administrators only." />
+      )}
     </AppLayout>
+  )
+}
+
+function AccessDenied({ message }: { message: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-navy-200 shadow-premium p-8 text-center">
+      <h2 className="text-lg font-semibold text-navy-900 mb-2">Access Restricted</h2>
+      <p className="text-navy-600">{message}</p>
+    </div>
   )
 }
 
 function LoginPage() {
   const { login } = useAuth()
+  const { showToast } = useToast()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -69,8 +106,10 @@ function LoginPage() {
     
     try {
       await login(email, password)
+      showToast('Signed in successfully', 'success')
     } catch (err) {
       setError('Invalid email or password')
+      showToast('Invalid email or password', 'error')
     } finally {
       setLoading(false)
     }

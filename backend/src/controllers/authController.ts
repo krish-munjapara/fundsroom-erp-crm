@@ -17,6 +17,11 @@ export const register = async (req: AuthRequest, res: Response): Promise<void> =
 
     const userData: CreateUserDto = value;
 
+    // Only admins can register users; default role is sales when omitted
+    if (!userData.role) {
+      userData.role = 'sales';
+    }
+
     // Check if user already exists
     const existingUser = await UserService.getUserByEmail(userData.email);
     if (existingUser) {

@@ -54,8 +54,11 @@ interface LowStockProduct {
 }
 
 export const dashboardService = {
-  async getStats(period: string = 'all') {
-    return apiService.get<DashboardStats>(`/api/dashboard/stats?period=${period}`);
+  async getStats(period: string = 'all', startDate?: string, endDate?: string) {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return apiService.get<DashboardStats>(`/api/dashboard/stats?${params.toString()}`);
   },
 
   async getRecentOrders(limit: number = 10) {
@@ -70,8 +73,11 @@ export const dashboardService = {
     return apiService.get<Record<string, number>>('/api/dashboard/order-status-summary');
   },
 
-  async getSalesTrend(period: string = 'month') {
-    return apiService.get<SalesTrendItem[]>(`/api/dashboard/sales-trend?period=${period}`);
+  async getSalesTrend(period: string = 'month', startDate?: string, endDate?: string) {
+    const params = new URLSearchParams({ period });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    return apiService.get<SalesTrendItem[]>(`/api/dashboard/sales-trend?${params.toString()}`);
   },
 
   async getTopProducts(limit: number = 5) {

@@ -14,8 +14,7 @@ describe('ProductService', () => {
         id: 1,
         sku: 'PROD-001',
         name: 'Test Product',
-        base_price: 100,
-        selling_price: 150,
+        unit_price: 100,
         tax_rate: 18,
         unit: 'pcs',
         is_active: true,
@@ -30,8 +29,11 @@ describe('ProductService', () => {
       const result = await ProductService.createProduct({
         sku: 'PROD-001',
         name: 'Test Product',
-        base_price: 100,
-        selling_price: 150,
+        category: 'General',
+        unit_price: 100,
+        current_stock: 0,
+        minimum_stock: 10,
+        location: 'Warehouse A',
       });
 
       expect(result).toEqual(mockProduct);
@@ -107,7 +109,7 @@ describe('ProductService', () => {
 
       const result = await ProductService.updateProduct(1, {
         name: 'Updated Product',
-        selling_price: 200,
+        unit_price: 200,
       });
 
       expect(result).toEqual(mockUpdatedProduct);

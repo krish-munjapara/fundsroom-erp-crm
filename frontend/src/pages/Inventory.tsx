@@ -3,8 +3,11 @@ import { inventoryService, productService } from '../services';
 import type { StockMovement, Product } from '../services';
 import { KPICard, EmptyState } from '../components/ui';
 import { formatDate } from '../utils/formatters';
+import { usePermissions, useToast } from '../context';
 
 export default function Inventory() {
+  const permissions = usePermissions();
+  const { showToast } = useToast();
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +73,7 @@ export default function Inventory() {
       const response = await productService.adjustStock(data.productId, data);
       if (response.success) {
         setShowStockAdjustModal(false);
+        showToast('Stock updated successfully', 'success');
         loadStockMovements();
         loadProducts();
       } else {
@@ -108,6 +112,7 @@ export default function Inventory() {
             <p className="text-sm text-navy-500 mt-1">Track inventory adjustments and stock history</p>
           </div>
         </div>
+        {permissions.canManageInventory && (
         <button
           onClick={() => setShowStockAdjustModal(true)}
           className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5"
@@ -117,6 +122,7 @@ export default function Inventory() {
           </svg>
           Stock Adjustment
         </button>
+        )}
       </div>
 
       {/* Statistics Cards */}

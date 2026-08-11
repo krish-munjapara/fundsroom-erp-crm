@@ -16,16 +16,22 @@ export class CustomerService {
       tax_id,
       credit_limit = 0,
       notes,
+      customer_type = 'retail',
+      status = 'active',
+      follow_up_date,
     } = customerData;
 
     const query = `
       INSERT INTO customers (
         company_name, contact_person, email, phone, address, city, state,
-        postal_code, country, tax_id, credit_limit, notes
+        postal_code, country, tax_id, credit_limit, notes,
+        customer_type, status, follow_up_date, is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
       RETURNING *
     `;
+
+    const isActive = status !== 'inactive';
 
     const values = [
       company_name,
@@ -40,6 +46,10 @@ export class CustomerService {
       tax_id,
       credit_limit,
       notes,
+      customer_type,
+      status,
+      follow_up_date ?? null,
+      isActive,
     ];
 
     const result = await pool.query(query, values);
@@ -70,10 +80,14 @@ export class CustomerService {
     const countResult = await pool.query(countQuery, searchValues);
     const total = parseInt(countResult.rows[0].count);
 
+    const allowedSort = ['created_at', 'company_name', 'contact_person', 'email'];
+    const sortColumn = allowedSort.includes(sort) ? sort : 'created_at';
+    const sortOrder = order === 'asc' ? 'ASC' : 'DESC';
+
     const dataQuery = `
       SELECT * FROM customers 
       ${searchQuery}
-      ORDER BY ${sort} ${order}
+      ORDER BY ${sortColumn} ${sortOrder}
       LIMIT $${searchValues.length + 1} OFFSET $${searchValues.length + 2}
     `;
 
@@ -118,6 +132,9 @@ export class CustomerService {
       current_balance,
       is_active,
       notes,
+      customer_type,
+      status,
+      follow_up_date,
     } = updates;
 
     const query = `
@@ -136,8 +153,12 @@ export class CustomerService {
         credit_limit = COALESCE($11, credit_limit),
         current_balance = COALESCE($12, current_balance),
         is_active = COALESCE($13, is_active),
-        notes = COALESCE($14, notes)
-      WHERE id = $15
+        notes = COALESCE($14, notes),
+        customer_type = COALESCE($15, customer_type),
+        status = COALESCE($16, status),
+        follow_up_date = COALESCE($17, follow_up_date),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $18
       RETURNING *
     `;
 
@@ -156,6 +177,9 @@ export class CustomerService {
       current_balance,
       is_active,
       notes,
+      customer_type,
+      status,
+      follow_up_date ?? null,
       id,
     ];
 
@@ -163,13 +187,20 @@ export class CustomerService {
     return result.rows[0] || null;
   }
 
+  static async deactivateCustomer(id: number): Promise<Customer | null> {
+    const query = `
+      UPDATE customers
+      SET is_active = false, status = 'inactive', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await pool.query(query, [id]);
+    return result.rows[0] || null;
+  }
+
   static async deleteCustomer(id: number): Promise<boolean> {
     const query = 'DELETE FROM customers WHERE id = $1';
     const result = await pool.query(query, [id]);
     return (result.rowCount ?? 0) > 0;
-  }
-
-  static async deactivateCustomer(id: number): Promise<Customer | null> {
-    return this.updateCustomer(id, { is_active: false });
   }
 }

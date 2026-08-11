@@ -1,4 +1,5 @@
 import { FundsroomLogo } from '../ui';
+import type { PageId } from '../../utils/permissions';
 
 interface SidebarProps {
   currentPage: string;
@@ -8,22 +9,25 @@ interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
   onLogout?: () => void;
+  allowedPages: PageId[];
+  canAccessSettings: boolean;
 }
 
-export default function Sidebar({ currentPage, onPageChange, collapsed, onToggle, mobileOpen, onMobileClose, onLogout }: SidebarProps) {
+export default function Sidebar({ currentPage, onPageChange, collapsed, onToggle, mobileOpen, onMobileClose, onLogout, allowedPages, canAccessSettings }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
     { id: 'customers', label: 'Customers', icon: CustomersIcon },
     { id: 'products', label: 'Products', icon: ProductsIcon },
     { id: 'inventory', label: 'Inventory', icon: InventoryIcon },
+    { id: 'challans', label: 'Sales Challans', icon: ChallansIcon },
     { id: 'orders', label: 'Orders', icon: OrdersIcon },
     { id: 'reports', label: 'Reports', icon: ReportsIcon },
-  ];
+  ].filter((item) => allowedPages.includes(item.id as PageId));
 
   const bottomItems = [
-    { id: 'settings', label: 'Settings', icon: SettingsIcon },
+    ...(canAccessSettings ? [{ id: 'settings', label: 'Settings', icon: SettingsIcon }] : []),
     { id: 'help', label: 'Help & Support', icon: HelpIcon },
-  ];
+  ].filter((item) => allowedPages.includes(item.id as PageId));
 
   return (
     <>
@@ -56,7 +60,10 @@ export default function Sidebar({ currentPage, onPageChange, collapsed, onToggle
           {navItems.map((item) => (
             <li key={item.id}>
               <button
-                onClick={() => onPageChange(item.id)}
+                onClick={() => {
+                  onPageChange(item.id);
+                  onMobileClose();
+                }}
                 className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group ${
                   currentPage === item.id
                     ? 'bg-primary-50 text-primary-700 shadow-sm-premium'
@@ -81,9 +88,17 @@ export default function Sidebar({ currentPage, onPageChange, collapsed, onToggle
           {bottomItems.map((item) => (
             <li key={item.id}>
               <button
-                className="w-full flex items-center px-3 py-2.5 rounded-lg text-navy-600 hover:bg-navy-50 hover:text-navy-900 transition-all duration-200 group"
+                onClick={() => {
+                  onPageChange(item.id);
+                  onMobileClose();
+                }}
+                className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+                  currentPage === item.id
+                    ? 'bg-primary-50 text-primary-700 shadow-sm-premium'
+                    : 'text-navy-600 hover:bg-navy-50 hover:text-navy-900'
+                }`}
               >
-                <item.icon className={`w-5 h-5 flex-shrink-0 text-navy-400 group-hover:text-navy-600 ${collapsed ? 'mx-auto' : ''}`} />
+                <item.icon className={`w-5 h-5 flex-shrink-0 ${currentPage === item.id ? 'text-primary-600' : 'text-navy-400 group-hover:text-navy-600'} ${collapsed ? 'mx-auto' : ''}`} />
                 {!collapsed && <span className="ml-3 text-sm font-medium tracking-tight">{item.label}</span>}
               </button>
             </li>
@@ -155,6 +170,14 @@ function OrdersIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+  );
+}
+
+function ChallansIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   );
 }

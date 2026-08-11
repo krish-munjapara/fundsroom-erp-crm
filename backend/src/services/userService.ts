@@ -3,7 +3,7 @@ import { User, CreateUserDto } from '../types';
 
 export class UserService {
   static async createUser(userData: CreateUserDto): Promise<User> {
-    const { email, password, first_name, last_name, role = 'user' } = userData;
+    const { email, password, first_name, last_name, role = 'sales' } = userData;
     
     const query = `
       INSERT INTO users (email, password_hash, first_name, last_name, role)

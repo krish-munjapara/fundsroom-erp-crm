@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import { getPermissions } from '../../utils/permissions';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface AppLayoutProps {
     first_name: string;
     last_name: string;
     email: string;
+    role?: string;
   };
   onLogout: () => void;
 }
@@ -25,6 +27,7 @@ export default function AppLayout({
 }: AppLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const permissions = getPermissions(user?.role);
 
   return (
     <div className="min-h-screen bg-navy-50">
@@ -36,12 +39,15 @@ export default function AppLayout({
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
         onLogout={onLogout}
+        allowedPages={permissions.pages}
+        canAccessSettings={permissions.canAccessSettings}
       />
       <Topbar 
         pageTitle={pageTitle} 
         user={user} 
         onLogout={onLogout}
         onMobileMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+        onPageChange={onPageChange}
       />
       <main
         className={`pt-20 transition-all duration-300 ${
