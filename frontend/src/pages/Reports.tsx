@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context';
+import { apiService } from '../services/api';
+import { formatCurrency } from '../utils/formatters';
 
 export default function Reports() {
   const { isAuthenticated } = useAuth();
@@ -19,13 +21,12 @@ export default function Reports() {
       if (startDate) params.append('start_date', startDate);
       if (endDate) params.append('end_date', endDate);
 
-      const response = await fetch(`/api/reports/${reportType}${params ? `?${params}` : ''}`);
-      const data = await response.json();
+      const response = await apiService.get(`/api/reports/${reportType}${params.toString() ? `?${params.toString()}` : ''}`);
 
-      if (data.success) {
-        setReportData(data.data);
+      if (response.success) {
+        setReportData(response.data);
       } else {
-        setError(data.message || 'Failed to load report');
+        setError(response.message || 'Failed to load report');
       }
     } catch (err) {
       setError('Failed to load report');
@@ -126,11 +127,11 @@ function SalesReport({ data }: { data: any }) {
         </div>
         <div className="bg-green-50 p-4 rounded">
           <p className="text-sm text-gray-600">Total Revenue</p>
-          <p className="text-2xl font-bold">${data.total_revenue?.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(data.total_revenue)}</p>
         </div>
         <div className="bg-purple-50 p-4 rounded">
           <p className="text-sm text-gray-600">Avg Order Value</p>
-          <p className="text-2xl font-bold">${data.average_order_value?.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(data.average_order_value)}</p>
         </div>
       </div>
 
@@ -162,7 +163,7 @@ function CustomerReport({ data }: { data: any }) {
         </div>
         <div className="bg-purple-50 p-4 rounded">
           <p className="text-sm text-gray-600">Total Credit Limit</p>
-          <p className="text-2xl font-bold">${data.total_credit_limit?.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(data.total_credit_limit)}</p>
         </div>
       </div>
 
@@ -181,7 +182,7 @@ function CustomerReport({ data }: { data: any }) {
               <tr key={customer.customer_id} className="border-b">
                 <td className="py-2">{customer.company_name}</td>
                 <td className="text-right py-2">{customer.total_orders}</td>
-                <td className="text-right py-2">${customer.total_spent?.toFixed(2)}</td>
+                <td className="text-right py-2">{formatCurrency(customer.total_spent)}</td>
               </tr>
             ))}
           </tbody>
@@ -223,7 +224,7 @@ function ProductReport({ data }: { data: any }) {
                 <td className="py-2">{product.product_name}</td>
                 <td className="py-2">{product.sku}</td>
                 <td className="text-right py-2">{product.total_quantity_sold}</td>
-                <td className="text-right py-2">${product.total_revenue?.toFixed(2)}</td>
+                <td className="text-right py-2">{formatCurrency(product.total_revenue)}</td>
               </tr>
             ))}
           </tbody>
@@ -252,7 +253,7 @@ function InventoryReport({ data }: { data: any }) {
         </div>
         <div className="bg-green-50 p-4 rounded">
           <p className="text-sm text-gray-600">Total Value</p>
-          <p className="text-2xl font-bold">${data.total_inventory_value?.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(data.total_inventory_value)}</p>
         </div>
       </div>
 
@@ -275,7 +276,7 @@ function InventoryReport({ data }: { data: any }) {
                 <td className="py-2">{item.sku}</td>
                 <td className="text-right py-2">{item.quantity}</td>
                 <td className="text-right py-2">{item.available_quantity}</td>
-                <td className="text-right py-2">${item.value?.toFixed(2)}</td>
+                <td className="text-right py-2">{formatCurrency(item.value)}</td>
               </tr>
             ))}
           </tbody>
