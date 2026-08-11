@@ -6,14 +6,13 @@ export interface Product {
   sku: string;
   name: string;
   description?: string;
-  category?: string;
-  unit: string;
-  base_price: number;
-  selling_price: number;
-  tax_rate: number;
-  hsn_code?: string;
+  category: string;
+  unit_price: number;
+  current_stock: number;
+  minimum_stock: number;
+  location: string;
+  warehouse?: string;
   is_active: boolean;
-  reorder_level: number;
   created_at: string;
   updated_at: string;
 }
@@ -22,13 +21,25 @@ export interface CreateProductData {
   sku: string;
   name: string;
   description?: string;
+  category: string;
+  unit_price: number;
+  current_stock: number;
+  minimum_stock: number;
+  location: string;
+  warehouse?: string;
+  is_active?: boolean;
+}
+
+export interface UpdateProductData {
+  sku?: string;
+  name?: string;
+  description?: string;
   category?: string;
-  unit?: string;
-  base_price: number;
-  selling_price: number;
-  tax_rate?: number;
-  hsn_code?: string;
-  reorder_level?: number;
+  unit_price?: number;
+  minimum_stock?: number;
+  location?: string;
+  warehouse?: string;
+  is_active?: boolean;
 }
 
 export const productService = {
@@ -54,11 +65,15 @@ export const productService = {
     return apiService.post<Product>('/api/products', data);
   },
 
-  async updateProduct(id: number, data: Partial<CreateProductData>): Promise<ApiResponse<Product>> {
+  async updateProduct(id: number, data: Partial<UpdateProductData>): Promise<ApiResponse<Product>> {
     return apiService.put<Product>(`/api/products/${id}`, data);
   },
 
   async deleteProduct(id: number): Promise<ApiResponse<void>> {
     return apiService.delete<void>(`/api/products/${id}`);
+  },
+
+  async adjustStock(productId: number, data: { quantity: number; movement_type: 'in' | 'out'; notes: string }): Promise<ApiResponse<Product>> {
+    return apiService.patch<Product>(`/api/products/${productId}/adjust-stock`, data);
   },
 };

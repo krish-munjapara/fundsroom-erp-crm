@@ -61,38 +61,42 @@ export const createProductSchema = Joi.object({
     'any.required': 'Product name is required',
   }),
   description: Joi.string().max(1000).optional(),
-  category: Joi.string().max(100).optional(),
-  unit: Joi.string().max(50).optional(),
-  base_price: Joi.number().min(0).required().messages({
-    'number.min': 'Base price must be non-negative',
-    'any.required': 'Base price is required',
+  category: Joi.string().min(2).max(100).required().messages({
+    'string.min': 'Category must be at least 2 characters',
+    'string.max': 'Category must not exceed 100 characters',
+    'any.required': 'Category is required',
   }),
-  selling_price: Joi.number().min(0).required().messages({
-    'number.min': 'Selling price must be non-negative',
-    'any.required': 'Selling price is required',
+  unit_price: Joi.number().min(0).required().messages({
+    'number.min': 'Unit price must be non-negative',
+    'any.required': 'Unit price is required',
   }),
-  tax_rate: Joi.number().min(0).max(100).optional().messages({
-    'number.min': 'Tax rate must be non-negative',
-    'number.max': 'Tax rate must not exceed 100',
+  current_stock: Joi.number().integer().min(0).required().messages({
+    'number.min': 'Current stock must be non-negative',
+    'any.required': 'Current stock is required',
   }),
-  hsn_code: Joi.string().max(20).optional(),
-  reorder_level: Joi.number().min(0).optional().messages({
-    'number.min': 'Reorder level must be non-negative',
+  minimum_stock: Joi.number().integer().min(0).required().messages({
+    'number.min': 'Minimum stock must be non-negative',
+    'any.required': 'Minimum stock is required',
   }),
+  location: Joi.string().min(2).max(100).required().messages({
+    'string.min': 'Location must be at least 2 characters',
+    'string.max': 'Location must not exceed 100 characters',
+    'any.required': 'Location is required',
+  }),
+  warehouse: Joi.string().max(100).optional(),
+  is_active: Joi.boolean().optional(),
 });
 
 export const updateProductSchema = Joi.object({
   sku: Joi.string().min(3).max(50).optional(),
   name: Joi.string().min(2).max(255).optional(),
   description: Joi.string().max(1000).optional(),
-  category: Joi.string().max(100).optional(),
-  unit: Joi.string().max(50).optional(),
-  base_price: Joi.number().min(0).optional(),
-  selling_price: Joi.number().min(0).optional(),
-  tax_rate: Joi.number().min(0).max(100).optional(),
-  hsn_code: Joi.string().max(20).optional(),
+  category: Joi.string().min(2).max(100).optional(),
+  unit_price: Joi.number().min(0).optional(),
+  minimum_stock: Joi.number().integer().min(0).optional(),
+  location: Joi.string().min(2).max(100).optional(),
+  warehouse: Joi.string().max(100).optional(),
   is_active: Joi.boolean().optional(),
-  reorder_level: Joi.number().min(0).optional(),
 });
 
 // Inventory Validators
@@ -122,16 +126,21 @@ export const stockMovementSchema = Joi.object({
     'number.positive': 'Product ID must be positive',
     'any.required': 'Product ID is required',
   }),
-  quantity: Joi.number().integer().required().messages({
+  quantity: Joi.number().integer().positive().required().messages({
     'any.required': 'Quantity is required',
+    'number.positive': 'Quantity must be positive',
   }),
-  movement_type: Joi.string().valid('in', 'out', 'adjustment').required().messages({
-    'any.only': 'Movement type must be one of: in, out, adjustment',
+  movement_type: Joi.string().valid('in', 'out').required().messages({
+    'any.only': 'Movement type must be one of: in, out',
     'any.required': 'Movement type is required',
   }),
   reference_type: Joi.string().max(50).optional(),
   reference_id: Joi.number().integer().optional(),
-  notes: Joi.string().max(500).optional(),
+  notes: Joi.string().min(2).max(500).required().messages({
+    'string.min': 'Reason must be at least 2 characters',
+    'string.max': 'Reason must not exceed 500 characters',
+    'any.required': 'Reason is required',
+  }),
 });
 
 // Order Validators

@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ensure proper text color for light theme */
+body {
+  color: #0f172a;
+  background-color: #f8fafc;
+}

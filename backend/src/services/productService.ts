@@ -1,27 +1,28 @@
 import { pool } from '../config/database';
-import { Product, CreateProductDto, UpdateProductDto, PaginationParams, PaginatedResponse } from '../types';
+import { Product, CreateProductDto, UpdateProductDto, PaginationParams, PaginatedResponse, StockMovementDto } from '../types';
+import { InventoryService } from './inventoryService';
 
 export class ProductService {
-  static async createProduct(productData: CreateProductDto): Promise<Product> {
+  static async createProduct(productData: CreateProductDto, userId?: number): Promise<Product> {
     const {
       sku,
       name,
       description,
       category,
-      unit = 'pcs',
-      base_price,
-      selling_price,
-      tax_rate = 0,
-      hsn_code,
-      reorder_level = 10,
+      unit_price,
+      current_stock,
+      minimum_stock,
+      location,
+      warehouse,
+      is_active = true,
     } = productData;
 
     const query = `
       INSERT INTO products (
-        sku, name, description, category, unit, base_price, selling_price,
-        tax_rate, hsn_code, reorder_level
+        sku, name, description, category, unit_price, current_stock,
+        minimum_stock, location, warehouse, is_active, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
 
@@ -30,16 +31,47 @@ export class ProductService {
       name,
       description,
       category,
-      unit,
-      base_price,
-      selling_price,
-      tax_rate,
-      hsn_code,
-      reorder_level,
+      unit_price,
+      current_stock,
+      minimum_stock,
+      location,
+      warehouse,
+      is_active,
+      userId,
     ];
 
     const result = await pool.query(query, values);
-    return result.rows[0];
+    const product = result.rows[0];
+
+    // Create inventory record
+    if (current_stock > 0) {
+      await InventoryService.createInventory({
+        product_id: product.id,
+        quantity: current_stock,
+        location,
+        warehouse,
+      });
+
+      // Create initial stock movement
+      if (userId) {
+        await InventoryService.recordStockMovement({
+          product_id: product.id,
+          quantity: current_stock,
+          movement_type: 'in',
+          notes: 'Initial Stock',
+        }, userId);
+      }
+    } else {
+      // Create inventory record with 0 stock
+      await InventoryService.createInventory({
+        product_id: product.id,
+        quantity: 0,
+        location,
+        warehouse,
+      });
+    }
+
+    return product;
   }
 
   static async getAllProducts(params: PaginationParams = {}): Promise<PaginatedResponse<Product>> {
@@ -103,13 +135,11 @@ export class ProductService {
       name,
       description,
       category,
-      unit,
-      base_price,
-      selling_price,
-      tax_rate,
-      hsn_code,
+      unit_price,
+      minimum_stock,
+      location,
+      warehouse,
       is_active,
-      reorder_level,
     } = updates;
 
     const query = `
@@ -119,14 +149,13 @@ export class ProductService {
         name = COALESCE($2, name),
         description = COALESCE($3, description),
         category = COALESCE($4, category),
-        unit = COALESCE($5, unit),
-        base_price = COALESCE($6, base_price),
-        selling_price = COALESCE($7, selling_price),
-        tax_rate = COALESCE($8, tax_rate),
-        hsn_code = COALESCE($9, hsn_code),
-        is_active = COALESCE($10, is_active),
-        reorder_level = COALESCE($11, reorder_level)
-      WHERE id = $12
+        unit_price = COALESCE($5, unit_price),
+        minimum_stock = COALESCE($6, minimum_stock),
+        location = COALESCE($7, location),
+        warehouse = COALESCE($8, warehouse),
+        is_active = COALESCE($9, is_active),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $10
       RETURNING *
     `;
 
@@ -135,13 +164,11 @@ export class ProductService {
       name,
       description,
       category,
-      unit,
-      base_price,
-      selling_price,
-      tax_rate,
-      hsn_code,
+      unit_price,
+      minimum_stock,
+      location,
+      warehouse,
       is_active,
-      reorder_level,
       id,
     ];
 
@@ -159,5 +186,46 @@ export class ProductService {
     const query = 'SELECT * FROM products WHERE is_active = true ORDER BY name';
     const result = await pool.query(query);
     return result.rows;
+  }
+
+  static async adjustStock(productId: number, quantity: number, movementType: 'in' | 'out', notes: string, userId: number): Promise<Product | null> {
+    // Get current product
+    const product = await this.getProductById(productId);
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    // Validate stock for OUT movements
+    if (movementType === 'out' && quantity > product.current_stock) {
+      throw new Error(`Insufficient stock. Available quantity: ${product.current_stock}`);
+    }
+
+    // Calculate new stock
+    const newStock = movementType === 'in' 
+      ? product.current_stock + quantity 
+      : product.current_stock - quantity;
+
+    // Update product stock
+    const updateQuery = `
+      UPDATE products 
+      SET current_stock = $1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $2 
+      RETURNING *
+    `;
+    const updateResult = await pool.query(updateQuery, [newStock, productId]);
+    const updatedProduct = updateResult.rows[0];
+
+    // Update inventory
+    await InventoryService.updateStockQuantity(productId, movementType === 'in' ? quantity : -quantity);
+
+    // Record stock movement
+    await InventoryService.recordStockMovement({
+      product_id: productId,
+      quantity: Math.abs(quantity),
+      movement_type: movementType,
+      notes,
+    }, userId);
+
+    return updatedProduct;
   }
 }

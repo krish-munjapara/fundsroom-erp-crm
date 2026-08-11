@@ -2,7 +2,7 @@ export { apiService } from './api';
 export { customerService } from './customerService';
 export type { Customer, CreateCustomerData } from './customerService';
 export { productService } from './productService';
-export type { Product, CreateProductData } from './productService';
+export type { Product, CreateProductData, UpdateProductData } from './productService';
 export { inventoryService } from './inventoryService';
 export type { Inventory, StockMovement } from './inventoryService';
 export { orderService } from './orderService';

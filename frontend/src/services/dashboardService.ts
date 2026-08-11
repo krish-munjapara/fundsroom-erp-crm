@@ -30,9 +30,32 @@ interface RecentActivity {
   created_at: string;
 }
 
+interface SalesTrendItem {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+interface TopProduct {
+  id: number;
+  name: string;
+  sku: string;
+  units_sold: number;
+  revenue: number;
+}
+
+interface LowStockProduct {
+  id: number;
+  name: string;
+  sku: string;
+  current_stock: number;
+  min_stock: number;
+  needed: number;
+}
+
 export const dashboardService = {
-  async getStats() {
-    return apiService.get<DashboardStats>('/api/dashboard/stats');
+  async getStats(period: string = 'all') {
+    return apiService.get<DashboardStats>(`/api/dashboard/stats?period=${period}`);
   },
 
   async getRecentOrders(limit: number = 10) {
@@ -45,5 +68,17 @@ export const dashboardService = {
 
   async getOrderStatusSummary() {
     return apiService.get<Record<string, number>>('/api/dashboard/order-status-summary');
+  },
+
+  async getSalesTrend(period: string = 'month') {
+    return apiService.get<SalesTrendItem[]>(`/api/dashboard/sales-trend?period=${period}`);
+  },
+
+  async getTopProducts(limit: number = 5) {
+    return apiService.get<TopProduct[]>(`/api/dashboard/top-products?limit=${limit}`);
+  },
+
+  async getLowStockProducts(limit: number = 10) {
+    return apiService.get<LowStockProduct[]>(`/api/dashboard/low-stock-products?limit=${limit}`);
   },
 };

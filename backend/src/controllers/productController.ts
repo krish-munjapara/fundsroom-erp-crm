@@ -196,3 +196,51 @@ export const deleteProduct = async (req: AuthRequest, res: Response): Promise<vo
     }
   }
 };
+
+export const adjustStock = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const productId = parseInt(id);
+    const { quantity, movement_type, notes } = req.body;
+
+    if (isNaN(productId)) {
+      throw new AppError('Invalid product ID', 400);
+    }
+
+    if (!req.user) {
+      throw new AppError('Authentication required', 401);
+    }
+
+    if (typeof quantity !== 'number' || quantity <= 0) {
+      throw new AppError('Quantity must be a positive number', 400);
+    }
+
+    if (!['in', 'out'].includes(movement_type)) {
+      throw new AppError('Movement type must be either in or out', 400);
+    }
+
+    if (!notes || typeof notes !== 'string' || notes.trim().length < 2) {
+      throw new AppError('Reason is required and must be at least 2 characters', 400);
+    }
+
+    const product = await ProductService.adjustStock(productId, quantity, movement_type, notes.trim(), req.user.id);
+
+    res.status(200).json({
+      success: true,
+      message: 'Stock adjusted successfully',
+      data: product,
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Internal server error',
+      });
+    }
+  }
+};

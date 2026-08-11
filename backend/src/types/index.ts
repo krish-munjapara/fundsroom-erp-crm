@@ -101,14 +101,13 @@ export interface Product {
   sku: string;
   name: string;
   description?: string;
-  category?: string;
-  unit: string;
-  base_price: number;
-  selling_price: number;
-  tax_rate: number;
-  hsn_code?: string;
+  category: string;
+  unit_price: number;
+  current_stock: number;
+  minimum_stock: number;
+  location: string;
+  warehouse?: string;
   is_active: boolean;
-  reorder_level: number;
   created_by?: number;
   updated_by?: number;
   created_at: Date;
@@ -119,13 +118,13 @@ export interface CreateProductDto {
   sku: string;
   name: string;
   description?: string;
-  category?: string;
-  unit?: string;
-  base_price: number;
-  selling_price: number;
-  tax_rate?: number;
-  hsn_code?: string;
-  reorder_level?: number;
+  category: string;
+  unit_price: number;
+  current_stock: number;
+  minimum_stock: number;
+  location: string;
+  warehouse?: string;
+  is_active?: boolean;
 }
 
 export interface UpdateProductDto {
@@ -133,13 +132,11 @@ export interface UpdateProductDto {
   name?: string;
   description?: string;
   category?: string;
-  unit?: string;
-  base_price?: number;
-  selling_price?: number;
-  tax_rate?: number;
-  hsn_code?: string;
+  unit_price?: number;
+  minimum_stock?: number;
+  location?: string;
+  warehouse?: string;
   is_active?: boolean;
-  reorder_level?: number;
 }
 
 // Inventory Types
@@ -173,10 +170,10 @@ export interface UpdateInventoryDto {
 export interface StockMovementDto {
   product_id: number;
   quantity: number;
-  movement_type: 'in' | 'out' | 'adjustment';
+  movement_type: 'in' | 'out';
   reference_type?: string;
   reference_id?: number;
-  notes?: string;
+  notes: string;
 }
 
 // Order Types

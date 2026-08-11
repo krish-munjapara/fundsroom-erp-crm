@@ -17,6 +17,7 @@ export interface Customer {
   current_balance: number;
   is_active: boolean;
   notes?: string;
+  customer_type?: string;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,8 @@ export interface CreateCustomerData {
   tax_id?: string;
   credit_limit?: number;
   notes?: string;
+  customer_type?: string;
+  is_active?: boolean;
 }
 
 export const customerService = {

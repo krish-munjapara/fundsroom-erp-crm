@@ -6,7 +6,8 @@ import { dashboardParamsSchema } from '../validators';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const stats = await DashboardService.getDashboardStats();
+    const period = (req.query.period as string) || 'all';
+    const stats = await DashboardService.getDashboardStats(period);
 
     res.status(200).json({
       success: true,
@@ -90,6 +91,78 @@ export const getOrderStatusSummary = async (req: AuthRequest, res: Response): Pr
     res.status(200).json({
       success: true,
       data: summary,
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+};
+
+export const getSalesTrend = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const period = (req.query.period as string) || 'month';
+    const trend = await DashboardService.getSalesTrend(period);
+
+    res.status(200).json({
+      success: true,
+      data: trend,
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+};
+
+export const getTopProducts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 5;
+    const products = await DashboardService.getTopProducts(limit);
+
+    res.status(200).json({
+      success: true,
+      data: products,
+    });
+  } catch (error) {
+    if (error instanceof AppError) {
+      res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+};
+
+export const getLowStockProducts = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+    const products = await DashboardService.getLowStockProducts(limit);
+
+    res.status(200).json({
+      success: true,
+      data: products,
     });
   } catch (error) {
     if (error instanceof AppError) {
