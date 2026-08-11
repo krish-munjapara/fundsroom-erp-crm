@@ -16,21 +16,26 @@ describe('ReportingService', () => {
 
   describe('getSalesReport', () => {
     it('should return sales report with no filters', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_orders: '100', total_revenue: '50000', average_order_value: '500' }],
+      };
+      const mockStatusResult = {
         rows: [
-          {
-            total_orders: '100',
-            total_revenue: '50000',
-            average_order_value: '500',
-            orders_by_status: { pending: 10, confirmed: 50, delivered: 40 },
-            revenue_by_month: [
-              { month: '2024-01', revenue: 10000 },
-              { month: '2024-02', revenue: 15000 },
-            ],
-          },
+          { status: 'pending', count: '10' },
+          { status: 'confirmed', count: '50' },
+          { status: 'delivered', count: '40' },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      const mockMonthlyResult = {
+        rows: [
+          { month: '2024-01', revenue: '10000' },
+          { month: '2024-02', revenue: '15000' },
+        ],
+      };
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockStatusResult)
+        .mockResolvedValueOnce(mockMonthlyResult);
 
       const result = await ReportingService.getSalesReport();
 
@@ -44,22 +49,23 @@ describe('ReportingService', () => {
           { month: '2024-02', revenue: 15000 },
         ],
       });
-      expect(mockPool.query).toHaveBeenCalled();
+      expect(mockPool.query).toHaveBeenCalledTimes(3);
     });
 
     it('should return sales report with date filters', async () => {
-      const mockResult = {
-        rows: [
-          {
-            total_orders: '50',
-            total_revenue: '25000',
-            average_order_value: '500',
-            orders_by_status: { confirmed: 30, delivered: 20 },
-            revenue_by_month: [{ month: '2024-03', revenue: 25000 }],
-          },
-        ],
+      const mockStatsResult = {
+        rows: [{ total_orders: '50', total_revenue: '25000', average_order_value: '500' }],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      const mockStatusResult = {
+        rows: [{ status: 'confirmed', count: '30' }, { status: 'delivered', count: '20' }],
+      };
+      const mockMonthlyResult = {
+        rows: [{ month: '2024-03', revenue: '25000' }],
+      };
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockStatusResult)
+        .mockResolvedValueOnce(mockMonthlyResult);
 
       const filters = {
         start_date: new Date('2024-03-01'),
@@ -76,18 +82,19 @@ describe('ReportingService', () => {
     });
 
     it('should return sales report with status filter', async () => {
-      const mockResult = {
-        rows: [
-          {
-            total_orders: '30',
-            total_revenue: '15000',
-            average_order_value: '500',
-            orders_by_status: { confirmed: 30 },
-            revenue_by_month: [],
-          },
-        ],
+      const mockStatsResult = {
+        rows: [{ total_orders: '30', total_revenue: '15000', average_order_value: '500' }],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      const mockStatusResult = {
+        rows: [{ status: 'confirmed', count: '30' }],
+      };
+      const mockMonthlyResult = {
+        rows: [],
+      };
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockStatusResult)
+        .mockResolvedValueOnce(mockMonthlyResult);
 
       const filters = { status: 'confirmed' };
 
@@ -103,24 +110,22 @@ describe('ReportingService', () => {
 
   describe('getCustomerReport', () => {
     it('should return customer report', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_customers: '25', active_customers: '20', total_credit_limit: '500000' }],
+      };
+      const mockTopCustomersResult = {
         rows: [
           {
-            total_customers: '25',
-            active_customers: '20',
-            total_credit_limit: '500000',
-            top_customers: [
-              {
-                customer_id: 1,
-                company_name: 'Acme Corp',
-                total_orders: 10,
-                total_spent: 15000,
-              },
-            ],
+            customer_id: 1,
+            company_name: 'Acme Corp',
+            total_orders: '10',
+            total_spent: '15000',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTopCustomersResult);
 
       const result = await ReportingService.getCustomerReport();
 
@@ -137,27 +142,26 @@ describe('ReportingService', () => {
           },
         ],
       });
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
     });
 
     it('should return customer report for specific customer', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_customers: '1', active_customers: '1', total_credit_limit: '100000' }],
+      };
+      const mockTopCustomersResult = {
         rows: [
           {
-            total_customers: '1',
-            active_customers: '1',
-            total_credit_limit: '100000',
-            top_customers: [
-              {
-                customer_id: 1,
-                company_name: 'Acme Corp',
-                total_orders: 5,
-                total_spent: 5000,
-              },
-            ],
+            customer_id: 1,
+            company_name: 'Acme Corp',
+            total_orders: '5',
+            total_spent: '5000',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTopCustomersResult);
 
       const filters = { customer_id: 1 };
 
@@ -173,24 +177,23 @@ describe('ReportingService', () => {
 
   describe('getProductPerformanceReport', () => {
     it('should return product performance report', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_products: '50', active_products: '45' }],
+      };
+      const mockTopProductsResult = {
         rows: [
           {
-            total_products: '50',
-            active_products: '45',
-            top_selling_products: [
-              {
-                product_id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                total_quantity_sold: 100,
-                total_revenue: 15000,
-              },
-            ],
+            product_id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            total_quantity_sold: '100',
+            total_revenue: '15000',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTopProductsResult);
 
       const result = await ReportingService.getProductPerformanceReport();
 
@@ -207,27 +210,27 @@ describe('ReportingService', () => {
           },
         ],
       });
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
     });
 
     it('should return product performance report for specific product', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_products: '1', active_products: '1' }],
+      };
+      const mockTopProductsResult = {
         rows: [
           {
-            total_products: '1',
-            active_products: '1',
-            top_selling_products: [
-              {
-                product_id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                total_quantity_sold: 50,
-                total_revenue: 7500,
-              },
-            ],
+            product_id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            total_quantity_sold: '50',
+            total_revenue: '7500',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTopProductsResult);
 
       const filters = { product_id: 1 };
 
@@ -243,27 +246,24 @@ describe('ReportingService', () => {
 
   describe('getInventoryReport', () => {
     it('should return inventory report', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_products: '50', low_stock_count: '5', out_of_stock_count: '2', total_inventory_value: '100000' }],
+      };
+      const mockStockSummaryResult = {
         rows: [
           {
-            total_products: '50',
-            low_stock_count: '5',
-            out_of_stock_count: '2',
-            total_inventory_value: '100000',
-            stock_summary: [
-              {
-                product_id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                quantity: 100,
-                available_quantity: 95,
-                value: 5000,
-              },
-            ],
+            product_id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            quantity: '100',
+            available_quantity: '95',
+            value: '5000',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockStockSummaryResult);
 
       const result = await ReportingService.getInventoryReport();
 
@@ -283,30 +283,28 @@ describe('ReportingService', () => {
           },
         ],
       });
+      expect(mockPool.query).toHaveBeenCalledTimes(2);
     });
 
     it('should return inventory report for specific product', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_products: '1', low_stock_count: '0', out_of_stock_count: '0', total_inventory_value: '5000' }],
+      };
+      const mockStockSummaryResult = {
         rows: [
           {
-            total_products: '1',
-            low_stock_count: '0',
-            out_of_stock_count: '0',
-            total_inventory_value: '5000',
-            stock_summary: [
-              {
-                product_id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                quantity: 100,
-                available_quantity: 95,
-                value: 5000,
-              },
-            ],
+            product_id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            quantity: '100',
+            available_quantity: '95',
+            value: '5000',
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockStockSummaryResult);
 
       const filters = { product_id: 1 };
 

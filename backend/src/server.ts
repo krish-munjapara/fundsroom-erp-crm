@@ -1,7 +1,7 @@
 import app from './app';
 import { config } from './config/env';
 import { testDatabaseConnection, closeDatabaseConnection } from './config/database';
-import { runMigrations } from './config/migration';
+import { runMigrations, runSeeds } from './config/migration';
 
 const PORT = config.port;
 
@@ -16,6 +16,11 @@ const startServer = async (): Promise<void> => {
 
     // Run migrations
     await runMigrations();
+
+    // Run seeds (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      await runSeeds();
+    }
 
     // Start server
     const server = app.listen(PORT, () => {

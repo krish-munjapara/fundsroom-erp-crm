@@ -119,8 +119,8 @@ CREATE TABLE IF NOT EXISTS order_items (
   unit_price DECIMAL(15, 2) NOT NULL,
   tax_rate DECIMAL(5, 2) DEFAULT 0,
   discount_amount DECIMAL(15, 2) DEFAULT 0,
-  subtotal DECIMAL(15, 2) GENERATED ALWAYS AS (quantity * unit_price - discount_amount) STORED,
-  total_amount DECIMAL(15, 2) GENERATED ALWAYS AS (subtotal + (subtotal * tax_rate / 100)) STORED,
+  subtotal DECIMAL(15, 2) NOT NULL DEFAULT 0,
+  total_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -152,26 +152,31 @@ CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at ON stock_movements(cre
 -- ============================================
 -- TRIGGER FOR UPDATED_AT
 -- ============================================
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
 CREATE TRIGGER update_customers_updated_at
   BEFORE UPDATE ON customers
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at
   BEFORE UPDATE ON products
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory;
 CREATE TRIGGER update_inventory_updated_at
   BEFORE UPDATE ON inventory
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_orders_updated_at ON orders;
 CREATE TRIGGER update_orders_updated_at
   BEFORE UPDATE ON orders
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_order_items_updated_at ON order_items;
 CREATE TRIGGER update_order_items_updated_at
   BEFORE UPDATE ON order_items
   FOR EACH ROW

@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_activities_assigned_to ON customer_activ
 CREATE INDEX IF NOT EXISTS idx_customer_activities_created_by ON customer_activities(created_by);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_customer_activities_updated_at ON customer_activities;
 CREATE TRIGGER update_customer_activities_updated_at
   BEFORE UPDATE ON customer_activities
   FOR EACH ROW

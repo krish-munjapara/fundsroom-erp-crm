@@ -27,3 +27,40 @@ export const runMigrations = async (): Promise<void> => {
     throw error;
   }
 };
+
+export const runSeeds = async (): Promise<void> => {
+  try {
+    console.log('Running seeds...');
+    
+    const seedsDir = path.join(__dirname, '../seeds');
+    
+    // Check if seeds directory exists
+    if (!fs.existsSync(seedsDir)) {
+      console.log('No seeds directory found, skipping seeds');
+      return;
+    }
+    
+    const seedFiles = fs.readdirSync(seedsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort();
+
+    if (seedFiles.length === 0) {
+      console.log('No seed files found, skipping seeds');
+      return;
+    }
+
+    for (const file of seedFiles) {
+      const filePath = path.join(seedsDir, file);
+      const seedSQL = fs.readFileSync(filePath, 'utf8');
+      
+      console.log(`Running seed: ${file}`);
+      await pool.query(seedSQL);
+      console.log(`Seed ${file} completed successfully`);
+    }
+
+    console.log('All seeds completed successfully');
+  } catch (error) {
+    console.error('Seed failed:', error);
+    throw error;
+  }
+};

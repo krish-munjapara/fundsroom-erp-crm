@@ -1,6 +1,8 @@
 import { PasswordUtils } from '../utils/password';
 import { JwtUtils } from '../utils/jwt';
 import { registerSchema, loginSchema } from '../validators/authValidator';
+import { pool } from '../config/database';
+import { UserService } from '../services/userService';
 
 describe('Password Utilities', () => {
   describe('hashPassword', () => {
@@ -203,6 +205,80 @@ describe('Validation Schemas', () => {
       
       const { error } = loginSchema.validate(invalidData);
       expect(error).toBeDefined();
+    });
+  });
+});
+
+describe('Authentication Integration Tests', () => {
+  const ADMIN_EMAIL = 'admin@fundsroom.com';
+  const ADMIN_PASSWORD = 'Admin@123';
+  const ADMIN_HASH = '$2b$10$.zwXMvEWyE.uydo7Zk4FR.s4ThDulKh44bK.J5t45o6y0vyJoPt3K';
+
+  beforeAll(async () => {
+    // Ensure admin user exists in database
+    try {
+      await pool.query(`
+        INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (email) DO UPDATE SET
+          password_hash = EXCLUDED.password_hash,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          role = EXCLUDED.role,
+          is_active = EXCLUDED.is_active
+      `, [ADMIN_EMAIL, ADMIN_HASH, 'Admin', 'User', 'admin', true]);
+    } catch (error) {
+      console.error('Failed to setup admin user for tests:', error);
+    }
+  });
+
+  afterAll(async () => {
+    // Clean up test admin user
+    try {
+      await pool.query('DELETE FROM users WHERE email = $1', [ADMIN_EMAIL]);
+    } catch (error) {
+      console.error('Failed to cleanup admin user:', error);
+    }
+  });
+
+  describe('Default Admin Login', () => {
+    test('should successfully login with default admin credentials', async () => {
+      const user = await UserService.getUserByEmail(ADMIN_EMAIL);
+      expect(user).toBeDefined();
+      expect(user?.email).toBe(ADMIN_EMAIL);
+      expect(user?.role).toBe('admin');
+      expect(user?.is_active).toBe(true);
+
+      const isPasswordValid = await PasswordUtils.comparePassword(ADMIN_PASSWORD, user!.password_hash);
+      expect(isPasswordValid).toBe(true);
+    });
+
+    test('should reject invalid password for admin user', async () => {
+      const user = await UserService.getUserByEmail(ADMIN_EMAIL);
+      expect(user).toBeDefined();
+
+      const isPasswordValid = await PasswordUtils.comparePassword('WrongPassword123', user!.password_hash);
+      expect(isPasswordValid).toBe(false);
+    });
+
+    test('should generate valid JWT token for admin user', async () => {
+      const user = await UserService.getUserByEmail(ADMIN_EMAIL);
+      expect(user).toBeDefined();
+
+      const token = JwtUtils.generateToken({
+        userId: user!.id,
+        email: user!.email,
+        role: user!.role,
+      });
+
+      expect(token).toBeDefined();
+      expect(typeof token).toBe('string');
+
+      const decoded = JwtUtils.verifyToken(token);
+      expect(decoded).toBeDefined();
+      expect(decoded?.userId).toBe(user!.id);
+      expect(decoded?.email).toBe(ADMIN_EMAIL);
+      expect(decoded?.role).toBe('admin');
     });
   });
 });

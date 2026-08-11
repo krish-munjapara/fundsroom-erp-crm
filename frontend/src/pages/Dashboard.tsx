@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context';
+import { dashboardService } from '../services/dashboardService';
 
 interface DashboardStats {
   total_customers: number;
@@ -50,18 +51,14 @@ export default function Dashboard() {
       setError(null);
 
       const [statsRes, ordersRes, activitiesRes] = await Promise.all([
-        fetch('/api/dashboard/stats'),
-        fetch('/api/dashboard/recent-orders?limit=5'),
-        fetch('/api/dashboard/recent-activities?limit=5'),
+        dashboardService.getStats(),
+        dashboardService.getRecentOrders(5),
+        dashboardService.getRecentActivities(5),
       ]);
 
-      const statsData = await statsRes.json();
-      const ordersData = await ordersRes.json();
-      const activitiesData = await activitiesRes.json();
-
-      if (statsData.success) setStats(statsData.data);
-      if (ordersData.success) setRecentOrders(ordersData.data);
-      if (activitiesData.success) setRecentActivities(activitiesData.data);
+      if (statsRes.success && statsRes.data) setStats(statsRes.data);
+      if (ordersRes.success && ordersRes.data) setRecentOrders(ordersRes.data);
+      if (activitiesRes.success && activitiesRes.data) setRecentActivities(activitiesRes.data);
     } catch (err) {
       setError('Failed to load dashboard data');
     } finally {

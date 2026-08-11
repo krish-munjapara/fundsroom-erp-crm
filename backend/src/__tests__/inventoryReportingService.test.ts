@@ -16,27 +16,32 @@ describe('InventoryReportingService', () => {
 
   describe('getStockMovementSummary', () => {
     it('should return stock movement summary without product filter', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_movements: '100', stock_in: '500', stock_out: '300' }],
+      };
+      const mockTypeResult = {
+        rows: [
+          { movement_type: 'in', total_quantity: '500' },
+          { movement_type: 'out', total_quantity: '300' },
+          { movement_type: 'adjustment', total_quantity: '50' },
+        ],
+      };
+      const mockRecentResult = {
         rows: [
           {
-            total_movements: '100',
-            stock_in: '500',
-            stock_out: '300',
-            movements_by_type: { in: 500, out: 300, adjustment: 50 },
-            recent_movements: [
-              {
-                id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                movement_type: 'in',
-                quantity: 50,
-                created_at: new Date('2024-01-01'),
-              },
-            ],
+            id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            movement_type: 'in',
+            quantity: '50',
+            created_at: new Date('2024-01-01'),
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTypeResult)
+        .mockResolvedValueOnce(mockRecentResult);
 
       const result = await InventoryReportingService.getStockMovementSummary();
 
@@ -56,34 +61,32 @@ describe('InventoryReportingService', () => {
           },
         ],
       });
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.arrayContaining([50])
-      );
+      expect(mockPool.query).toHaveBeenCalledTimes(3);
     });
 
     it('should return stock movement summary with product filter', async () => {
-      const mockResult = {
+      const mockStatsResult = {
+        rows: [{ total_movements: '20', stock_in: '100', stock_out: '50' }],
+      };
+      const mockTypeResult = {
+        rows: [{ movement_type: 'in', total_quantity: '100' }, { movement_type: 'out', total_quantity: '50' }],
+      };
+      const mockRecentResult = {
         rows: [
           {
-            total_movements: '20',
-            stock_in: '100',
-            stock_out: '50',
-            movements_by_type: { in: 100, out: 50 },
-            recent_movements: [
-              {
-                id: 1,
-                product_name: 'Widget A',
-                sku: 'PROD-001',
-                movement_type: 'in',
-                quantity: 25,
-                created_at: new Date('2024-01-01'),
-              },
-            ],
+            id: 1,
+            product_name: 'Widget A',
+            sku: 'PROD-001',
+            movement_type: 'in',
+            quantity: '25',
+            created_at: new Date('2024-01-01'),
           },
         ],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTypeResult)
+        .mockResolvedValueOnce(mockRecentResult);
 
       const result = await InventoryReportingService.getStockMovementSummary(1);
 
@@ -95,18 +98,19 @@ describe('InventoryReportingService', () => {
     });
 
     it('should return stock movement summary with custom limit', async () => {
-      const mockResult = {
-        rows: [
-          {
-            total_movements: '100',
-            stock_in: '500',
-            stock_out: '300',
-            movements_by_type: { in: 500, out: 300 },
-            recent_movements: [],
-          },
-        ],
+      const mockStatsResult = {
+        rows: [{ total_movements: '100', stock_in: '500', stock_out: '300' }],
       };
-      mockPool.query.mockResolvedValue(mockResult);
+      const mockTypeResult = {
+        rows: [{ movement_type: 'in', total_quantity: '500' }, { movement_type: 'out', total_quantity: '300' }],
+      };
+      const mockRecentResult = {
+        rows: [],
+      };
+      mockPool.query
+        .mockResolvedValueOnce(mockStatsResult)
+        .mockResolvedValueOnce(mockTypeResult)
+        .mockResolvedValueOnce(mockRecentResult);
 
       await InventoryReportingService.getStockMovementSummary(undefined, 25);
 

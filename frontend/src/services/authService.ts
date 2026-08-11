@@ -15,7 +15,7 @@ export interface RegisterData {
 
 export interface AuthResponse {
   success: boolean;
-  message: string;
+  message?: string;
   data?: {
     user: {
       id: number;
@@ -33,27 +33,27 @@ export interface AuthResponse {
 
 export const authService = {
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await apiService.post<AuthResponse>('/api/auth/login', data);
-    if (response.success && response.data?.data?.token) {
-      apiService.setToken(response.data.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      return response.data;
+    const response = await apiService.post<{ user: any; token: string }>('/auth/login', data);
+    if (response.success && response.data?.token) {
+      apiService.setToken(response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      return { success: true, message: 'Login successful', data: response.data };
     }
-    return response.data || { success: false, message: 'Login failed' };
+    return { success: false, message: 'Login failed', data: { user: {} as any, token: '' } };
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await apiService.post<AuthResponse>('/api/auth/register', data);
-    if (response.success && response.data?.data?.token) {
-      apiService.setToken(response.data.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
-      return response.data;
+    const response = await apiService.post<{ user: any; token: string }>('/auth/register', data);
+    if (response.success && response.data?.token) {
+      apiService.setToken(response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      return { success: true, message: 'Registration successful', data: response.data };
     }
-    return response.data || { success: false, message: 'Registration failed' };
+    return { success: false, message: 'Registration failed', data: { user: {} as any, token: '' } };
   },
 
   async getProfile(): Promise<ApiResponse<any>> {
-    return apiService.get('/api/auth/profile');
+    return apiService.get('/auth/profile');
   },
 
   logout() {
