@@ -33,7 +33,7 @@ export interface AuthResponse {
 
 export const authService = {
   async login(data: LoginData): Promise<AuthResponse> {
-    const response = await apiService.post<{ user: any; token: string }>('/auth/login', data);
+    const response = await apiService.post<{ user: any; token: string }>('/api/auth/login', data);
     if (response.success && response.data?.token) {
       apiService.setToken(response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -43,7 +43,7 @@ export const authService = {
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await apiService.post<{ user: any; token: string }>('/auth/register', data);
+    const response = await apiService.post<{ user: any; token: string }>('/api/auth/register', data);
     if (response.success && response.data?.token) {
       apiService.setToken(response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -53,7 +53,7 @@ export const authService = {
   },
 
   async getProfile(): Promise<ApiResponse<any>> {
-    return apiService.get('/auth/profile');
+    return apiService.get('/api/auth/profile');
   },
 
   logout() {

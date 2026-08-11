@@ -29,31 +29,31 @@ export interface CreateCustomerActivityData {
 
 export const customerActivityService = {
   async createActivity(data: CreateCustomerActivityData): Promise<ApiResponse<CustomerActivity>> {
-    return apiService.post('/activities', data);
+    return apiService.post('/api/activities', data);
   },
 
   async getAllActivities(params?: any): Promise<ApiResponse<CustomerActivity[]>> {
     const queryParams = new URLSearchParams(params).toString();
-    return apiService.get(`/activities${queryParams ? `?${queryParams}` : ''}`);
+    return apiService.get(`/api/activities${queryParams ? `?${queryParams}` : ''}`);
   },
 
   async getActivityById(id: number): Promise<ApiResponse<CustomerActivity>> {
-    return apiService.get(`/activities/${id}`);
+    return apiService.get(`/api/activities/${id}`);
   },
 
   async getActivitiesByCustomerId(customerId: number): Promise<ApiResponse<CustomerActivity[]>> {
-    return apiService.get(`/activities/customer/${customerId}`);
+    return apiService.get(`/api/activities/customer/${customerId}`);
   },
 
   async getActivityTimeline(customerId: number): Promise<ApiResponse<CustomerActivity[]>> {
-    return apiService.get(`/activities/customer/${customerId}/timeline`);
+    return apiService.get(`/api/activities/customer/${customerId}/timeline`);
   },
 
   async updateActivity(id: number, data: Partial<CreateCustomerActivityData>): Promise<ApiResponse<CustomerActivity>> {
-    return apiService.put(`/activities/${id}`, data);
+    return apiService.put(`/api/activities/${id}`, data);
   },
 
   async deleteActivity(id: number): Promise<ApiResponse<void>> {
-    return apiService.delete(`/activities/${id}`);
+    return apiService.delete(`/api/activities/${id}`);
   },
 };

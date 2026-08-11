@@ -60,39 +60,39 @@ export const orderService = {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
 
-    const endpoint = `/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const endpoint = `/api/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<Order[]>(endpoint);
   },
 
   async getOrderById(id: number): Promise<ApiResponse<Order>> {
-    return apiService.get<Order>(`/orders/${id}`);
+    return apiService.get<Order>(`/api/orders/${id}`);
   },
 
   async getOrderByOrderNumber(orderNumber: string): Promise<ApiResponse<Order>> {
-    return apiService.get<Order>(`/orders/number/${orderNumber}`);
+    return apiService.get<Order>(`/api/orders/number/${orderNumber}`);
   },
 
   async getOrdersByCustomerId(customerId: number): Promise<ApiResponse<Order[]>> {
-    return apiService.get<Order[]>(`/orders/customer/${customerId}`);
+    return apiService.get<Order[]>(`/api/orders/customer/${customerId}`);
   },
 
   async createOrder(data: CreateOrderData): Promise<ApiResponse<Order>> {
-    return apiService.post<Order>('/orders', data);
+    return apiService.post<Order>('/api/orders', data);
   },
 
   async updateOrder(id: number, data: Partial<CreateOrderData>): Promise<ApiResponse<Order>> {
-    return apiService.put<Order>(`/orders/${id}`, data);
+    return apiService.put<Order>(`/api/orders/${id}`, data);
   },
 
   async updateOrderStatus(id: number, status: string): Promise<ApiResponse<Order>> {
-    return apiService.patch<Order>(`/orders/${id}/status`, { status });
+    return apiService.patch<Order>(`/api/orders/${id}/status`, { status });
   },
 
   async deleteOrder(id: number): Promise<ApiResponse<void>> {
-    return apiService.delete<void>(`/orders/${id}`);
+    return apiService.delete<void>(`/api/orders/${id}`);
   },
 
   async getOrderStats(): Promise<ApiResponse<any>> {
-    return apiService.get('/orders/stats');
+    return apiService.get('/api/orders/stats');
   },
 };

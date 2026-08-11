@@ -17,7 +17,15 @@ export default function Products() {
       setLoading(true);
       const response = await productService.getAllProducts();
       if (response.success && response.data) {
-        setProducts(response.data);
+        // Normalize numeric values from API (backend may return strings)
+        const normalizedProducts = response.data.map((product) => ({
+          ...product,
+          base_price: Number(product.base_price || 0),
+          selling_price: Number(product.selling_price || 0),
+          tax_rate: Number(product.tax_rate || 0),
+          reorder_level: Number(product.reorder_level || 0),
+        }));
+        setProducts(normalizedProducts);
       } else {
         setError(response.message || 'Failed to load products');
       }
@@ -112,7 +120,20 @@ function ProductModal({ onClose, onSave }: { onClose: () => void; onSave: (data:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Convert empty strings to undefined for optional fields
+    const cleanedData: CreateProductData = {
+      sku: formData.sku,
+      name: formData.name,
+      description: formData.description || undefined,
+      category: formData.category || undefined,
+      unit: formData.unit || undefined,
+      base_price: formData.base_price,
+      selling_price: formData.selling_price,
+      tax_rate: formData.tax_rate || undefined,
+      hsn_code: formData.hsn_code || undefined,
+      reorder_level: formData.reorder_level || undefined,
+    };
+    onSave(cleanedData);
   };
 
   return (

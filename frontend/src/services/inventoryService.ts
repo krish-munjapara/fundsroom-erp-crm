@@ -32,23 +32,23 @@ export interface StockMovement {
 
 export const inventoryService = {
   async getAllInventory(): Promise<ApiResponse<Inventory[]>> {
-    return apiService.get<Inventory[]>('/inventory');
+    return apiService.get<Inventory[]>('/api/inventory');
   },
 
   async getInventoryByProductId(productId: number): Promise<ApiResponse<Inventory>> {
-    return apiService.get<Inventory>(`/inventory/product/${productId}`);
+    return apiService.get<Inventory>(`/api/inventory/product/${productId}`);
   },
 
   async createInventory(data: { product_id: number; quantity?: number; location?: string; warehouse?: string }): Promise<ApiResponse<Inventory>> {
-    return apiService.post<Inventory>('/inventory', data);
+    return apiService.post<Inventory>('/api/inventory', data);
   },
 
   async updateInventory(id: number, data: Partial<Inventory>): Promise<ApiResponse<Inventory>> {
-    return apiService.put<Inventory>(`/inventory/${id}`, data);
+    return apiService.put<Inventory>(`/api/inventory/${id}`, data);
   },
 
   async updateStockQuantity(productId: number, quantity: number): Promise<ApiResponse<Inventory>> {
-    return apiService.patch<Inventory>(`/inventory/product/${productId}/quantity`, { quantity });
+    return apiService.patch<Inventory>(`/api/inventory/product/${productId}/quantity`, { quantity });
   },
 
   async recordStockMovement(data: {
@@ -59,11 +59,11 @@ export const inventoryService = {
     reference_id?: number;
     notes?: string;
   }): Promise<ApiResponse<void>> {
-    return apiService.post<void>('/inventory/movements', data);
+    return apiService.post<void>('/api/inventory/movements', data);
   },
 
   async getLowStockProducts(threshold?: number): Promise<ApiResponse<Inventory[]>> {
-    const endpoint = threshold ? `/inventory/low-stock?threshold=${threshold}` : '/inventory/low-stock';
+    const endpoint = threshold ? `/api/inventory/low-stock?threshold=${threshold}` : '/api/inventory/low-stock';
     return apiService.get<Inventory[]>(endpoint);
   },
 
@@ -72,11 +72,11 @@ export const inventoryService = {
     if (productId) queryParams.append('productId', productId.toString());
     if (limit) queryParams.append('limit', limit.toString());
 
-    const endpoint = `/inventory/movements${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const endpoint = `/api/inventory/movements${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<StockMovement[]>(endpoint);
   },
 
   async deleteInventory(id: number): Promise<ApiResponse<void>> {
-    return apiService.delete<void>(`/inventory/${id}`);
+    return apiService.delete<void>(`/api/inventory/${id}`);
   },
 };

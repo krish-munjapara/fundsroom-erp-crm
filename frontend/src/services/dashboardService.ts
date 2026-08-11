@@ -32,18 +32,18 @@ interface RecentActivity {
 
 export const dashboardService = {
   async getStats() {
-    return apiService.get<DashboardStats>('/dashboard/stats');
+    return apiService.get<DashboardStats>('/api/dashboard/stats');
   },
 
   async getRecentOrders(limit: number = 10) {
-    return apiService.get<RecentOrder[]>(`/dashboard/recent-orders?limit=${limit}`);
+    return apiService.get<RecentOrder[]>(`/api/dashboard/recent-orders?limit=${limit}`);
   },
 
   async getRecentActivities(limit: number = 10) {
-    return apiService.get<RecentActivity[]>(`/dashboard/recent-activities?limit=${limit}`);
+    return apiService.get<RecentActivity[]>(`/api/dashboard/recent-activities?limit=${limit}`);
   },
 
   async getOrderStatusSummary() {
-    return apiService.get<Record<string, number>>('/dashboard/order-status-summary');
+    return apiService.get<Record<string, number>>('/api/dashboard/order-status-summary');
   },
 };

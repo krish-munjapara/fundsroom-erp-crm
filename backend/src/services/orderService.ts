@@ -4,7 +4,7 @@ import { Order, CreateOrderDto, UpdateOrderDto, OrderItem, OrderItemDto, Paginat
 export class OrderService {
   static async createOrder(orderData: CreateOrderDto, userId: number): Promise<Order> {
     const client = await pool.connect();
-    
+
     try {
       await client.query('BEGIN');
 
@@ -23,10 +23,31 @@ export class OrderService {
       );
       const order_number = orderNumberResult.rows[0].order_number;
 
-      // Calculate totals
+      // Calculate totals and check inventory
       let subtotal = 0;
       let tax_amount = 0;
       let discount_amount = 0;
+
+      // Check inventory availability for all items first
+      for (const item of items) {
+        const { product_id, quantity } = item;
+
+        const inventoryQuery = `
+          SELECT quantity, reserved_quantity, available_quantity
+          FROM inventory
+          WHERE product_id = $1
+        `;
+        const inventoryResult = await client.query(inventoryQuery, [product_id]);
+
+        if (!inventoryResult.rows[0]) {
+          throw new Error(`No inventory record found for product ID ${product_id}. Please create an inventory record first.`);
+        }
+
+        const inventory = inventoryResult.rows[0];
+        if (inventory.available_quantity < quantity) {
+          throw new Error(`Insufficient inventory for product ID ${product_id}. Only ${inventory.available_quantity} units are available.`);
+        }
+      }
 
       // Create order
       const orderQuery = `
@@ -55,10 +76,10 @@ export class OrderService {
       const orderResult = await client.query(orderQuery, orderValues);
       const order = orderResult.rows[0];
 
-      // Create order items
+      // Create order items and reserve inventory
       for (const item of items) {
         const { product_id, quantity, unit_price, tax_rate = 0, item_discount_amount = 0 } = item;
-        
+
         const itemSubtotal = quantity * unit_price - item_discount_amount;
         const itemTaxAmount = itemSubtotal * (tax_rate / 100);
         const itemTotal = itemSubtotal + itemTaxAmount;
@@ -73,6 +94,24 @@ export class OrderService {
 
         const itemValues = [order.id, product_id, quantity, unit_price, tax_rate, item_discount_amount];
         await client.query(itemQuery, itemValues);
+
+        // Reserve inventory for this item
+        const reserveInventoryQuery = `
+          UPDATE inventory
+          SET reserved_quantity = reserved_quantity + $1,
+              last_stock_update = CURRENT_TIMESTAMP
+          WHERE product_id = $2
+        `;
+        await client.query(reserveInventoryQuery, [quantity, product_id]);
+
+        // Record stock movement
+        const movementQuery = `
+          INSERT INTO stock_movements (
+            product_id, movement_type, quantity, reference_type, reference_id, notes, created_by
+          )
+          VALUES ($1, 'out', $2, 'order', $3, $4, $5)
+        `;
+        await client.query(movementQuery, [product_id, quantity, order.id, `Order ${order_number}`, userId]);
 
         // Update running totals
         subtotal += itemSubtotal;
@@ -90,7 +129,7 @@ export class OrderService {
       `;
 
       const updateResult = await client.query(updateOrderQuery, [subtotal, tax_amount, discount_amount, total_amount, order.id]);
-      
+
       await client.query('COMMIT');
       return updateResult.rows[0];
 
@@ -108,11 +147,11 @@ export class OrderService {
 
     let searchQuery = '';
     let searchValues: string[] = [];
-    
+
     if (search) {
       searchQuery = `
-        WHERE o.order_number ILIKE $1 
-        OR c.company_name ILIKE $1 
+        WHERE o.order_number ILIKE $1
+        OR c.company_name ILIKE $1
         OR o.status ILIKE $1
       `;
       searchValues = [`%${search}%`];
@@ -123,7 +162,7 @@ export class OrderService {
       JOIN customers c ON o.customer_id = c.id
       ${searchQuery}
     `;
-    
+
     const countResult = await pool.query(countQuery, searchValues);
     const total = parseInt(countResult.rows[0].count);
 
@@ -137,7 +176,7 @@ export class OrderService {
     `;
 
     const dataResult = await pool.query(dataQuery, [...searchValues, limit, offset]);
-    
+
     return {
       data: dataResult.rows,
       pagination: {
@@ -202,7 +241,7 @@ export class OrderService {
 
     const query = `
       UPDATE orders
-      SET 
+      SET
         customer_id = COALESCE($1, customer_id),
         order_date = COALESCE($2, order_date),
         delivery_date = COALESCE($3, delivery_date),
@@ -245,8 +284,8 @@ export class OrderService {
 
   static async getOrdersByCustomerId(customerId: number): Promise<Order[]> {
     const query = `
-      SELECT * FROM orders 
-      WHERE customer_id = $1 
+      SELECT * FROM orders
+      WHERE customer_id = $1
       ORDER BY created_at DESC
     `;
     const result = await pool.query(query, [customerId]);
@@ -255,7 +294,7 @@ export class OrderService {
 
   static async getOrderStats(): Promise<any> {
     const query = `
-      SELECT 
+      SELECT
         COUNT(*) as total_orders,
         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_orders,
         COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_orders,

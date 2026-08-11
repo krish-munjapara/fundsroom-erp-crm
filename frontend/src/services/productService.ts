@@ -38,27 +38,27 @@ export const productService = {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
 
-    const endpoint = `/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const endpoint = `/api/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<Product[]>(endpoint);
   },
 
   async getActiveProducts(): Promise<ApiResponse<Product[]>> {
-    return apiService.get<Product[]>('/products/active');
+    return apiService.get<Product[]>('/api/products/active');
   },
 
   async getProductById(id: number): Promise<ApiResponse<Product>> {
-    return apiService.get<Product>(`/products/${id}`);
+    return apiService.get<Product>(`/api/products/${id}`);
   },
 
   async createProduct(data: CreateProductData): Promise<ApiResponse<Product>> {
-    return apiService.post<Product>('/products', data);
+    return apiService.post<Product>('/api/products', data);
   },
 
   async updateProduct(id: number, data: Partial<CreateProductData>): Promise<ApiResponse<Product>> {
-    return apiService.put<Product>(`/products/${id}`, data);
+    return apiService.put<Product>(`/api/products/${id}`, data);
   },
 
   async deleteProduct(id: number): Promise<ApiResponse<void>> {
-    return apiService.delete<void>(`/products/${id}`);
+    return apiService.delete<void>(`/api/products/${id}`);
   },
 };

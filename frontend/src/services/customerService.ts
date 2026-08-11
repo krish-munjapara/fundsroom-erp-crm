@@ -47,27 +47,27 @@ export const customerService = {
     if (!params?.page) queryParams.append('page', '1');
     if (!params?.limit) queryParams.append('limit', '10');
 
-    const endpoint = `/customers?${queryParams.toString()}`;
+    const endpoint = `/api/customers?${queryParams.toString()}`;
     return apiService.get<Customer[]>(endpoint);
   },
 
   async getCustomerById(id: number): Promise<ApiResponse<Customer>> {
-    return apiService.get<Customer>(`/customers/${id}`);
+    return apiService.get<Customer>(`/api/customers/${id}`);
   },
 
   async createCustomer(data: CreateCustomerData): Promise<ApiResponse<Customer>> {
-    return apiService.post<Customer>('/customers', data);
+    return apiService.post<Customer>('/api/customers', data);
   },
 
   async updateCustomer(id: number, data: Partial<CreateCustomerData>): Promise<ApiResponse<Customer>> {
-    return apiService.put<Customer>(`/customers/${id}`, data);
+    return apiService.put<Customer>(`/api/customers/${id}`, data);
   },
 
   async deleteCustomer(id: number): Promise<ApiResponse<void>> {
-    return apiService.delete<void>(`/customers/${id}`);
+    return apiService.delete<void>(`/api/customers/${id}`);
   },
 
   async deactivateCustomer(id: number): Promise<ApiResponse<Customer>> {
-    return apiService.patch<Customer>(`/customers/${id}/deactivate`, {});
+    return apiService.patch<Customer>(`/api/customers/${id}/deactivate`, {});
   },
 };

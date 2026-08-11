@@ -34,7 +34,19 @@ class ApiService {
     const response = await fetch(API_URL + endpoint, {
       method: 'GET',
       headers: this.getHeaders(),
+      cache: 'no-store',
     });
+
+    // Handle 304 Not Modified responses - they have no body
+    if (response.status === 304) {
+      return { success: true, data: undefined };
+    }
+
+    // Handle error responses
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
 
     return response.json();
   }
@@ -46,6 +58,11 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
+
     return response.json();
   }
 
@@ -55,6 +72,11 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
 
     return response.json();
   }
@@ -66,6 +88,11 @@ class ApiService {
       body: JSON.stringify(data),
     });
 
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
+
     return response.json();
   }
 
@@ -74,6 +101,11 @@ class ApiService {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ success: false, message: 'Request failed' }));
+      return errorData;
+    }
 
     return response.json();
   }

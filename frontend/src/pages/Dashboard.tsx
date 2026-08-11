@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context';
 import { dashboardService } from '../services/dashboardService';
+import { formatCurrency } from '../utils/formatters';
 
 interface DashboardStats {
   total_customers: number;
@@ -56,9 +57,28 @@ export default function Dashboard() {
         dashboardService.getRecentActivities(5),
       ]);
 
-      if (statsRes.success && statsRes.data) setStats(statsRes.data);
-      if (ordersRes.success && ordersRes.data) setRecentOrders(ordersRes.data);
-      if (activitiesRes.success && activitiesRes.data) setRecentActivities(activitiesRes.data);
+      if (statsRes.success && statsRes.data) {
+        const normalizedStats = {
+          total_customers: Number(statsRes.data.total_customers ?? 0),
+          total_products: Number(statsRes.data.total_products ?? 0),
+          total_orders: Number(statsRes.data.total_orders ?? 0),
+          total_sales: Number(statsRes.data.total_sales ?? 0),
+          low_stock_count: Number(statsRes.data.low_stock_count ?? 0),
+          pending_orders: Number(statsRes.data.pending_orders ?? 0),
+          confirmed_orders: Number(statsRes.data.confirmed_orders ?? 0),
+          delivered_orders: Number(statsRes.data.delivered_orders ?? 0),
+          cancelled_orders: Number(statsRes.data.cancelled_orders ?? 0),
+        };
+        setStats(normalizedStats);
+      }
+      if (ordersRes.success) {
+        const normalizedOrders = (ordersRes.data || []).map((order: any) => ({
+          ...order,
+          total_amount: Number(order.total_amount ?? 0),
+        }));
+        setRecentOrders(normalizedOrders);
+      }
+      if (activitiesRes.success) setRecentActivities(activitiesRes.data || []);
     } catch (err) {
       setError('Failed to load dashboard data');
     } finally {
@@ -114,7 +134,7 @@ export default function Dashboard() {
           />
           <StatCard
             title="Total Sales"
-            value={`$${stats?.total_sales?.toFixed(2) || '0.00'}`}
+            value={formatCurrency(stats?.total_sales)}
             color="yellow"
           />
         </div>
@@ -155,7 +175,7 @@ export default function Dashboard() {
                         <p className="text-sm text-gray-600">{order.customer_name}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">${order.total_amount.toFixed(2)}</p>
+                        <p className="font-medium">{formatCurrency(order.total_amount)}</p>
                         <p className="text-sm text-gray-600 capitalize">{order.status}</p>
                       </div>
                     </div>

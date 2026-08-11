@@ -8,7 +8,7 @@ export class DashboardService {
         (SELECT COUNT(*) FROM customers WHERE is_active = true) as total_customers,
         (SELECT COUNT(*) FROM products WHERE is_active = true) as total_products,
         (SELECT COUNT(*) FROM orders) as total_orders,
-        COALESCE((SELECT SUM(total_amount) FROM orders WHERE status IN ('delivered', 'confirmed')), 0) as total_sales,
+        COALESCE((SELECT SUM(total_amount) FROM orders WHERE status != 'cancelled'), 0) as total_sales,
         (SELECT COUNT(*) FROM inventory i JOIN products p ON i.product_id = p.id WHERE i.available_quantity <= p.reorder_level AND p.is_active = true) as low_stock_count,
         (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
         (SELECT COUNT(*) FROM orders WHERE status = 'confirmed') as confirmed_orders,

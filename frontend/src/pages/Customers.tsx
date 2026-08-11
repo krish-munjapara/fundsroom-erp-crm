@@ -293,12 +293,29 @@ function CustomerModal({ onClose, onSave, customer }: { onClose: () => void; onS
     state: customer?.state || '',
     postal_code: customer?.postal_code || '',
     country: customer?.country || 'India',
+    tax_id: customer?.tax_id || '',
     credit_limit: customer?.credit_limit || 0,
+    notes: customer?.notes || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Convert empty strings to undefined for optional fields
+    const cleanedData: CreateCustomerData = {
+      company_name: formData.company_name,
+      contact_person: formData.contact_person,
+      email: formData.email,
+      phone: formData.phone || undefined,
+      address: formData.address || undefined,
+      city: formData.city || undefined,
+      state: formData.state || undefined,
+      postal_code: formData.postal_code || undefined,
+      country: formData.country || undefined,
+      tax_id: formData.tax_id || undefined,
+      credit_limit: formData.credit_limit || undefined,
+      notes: formData.notes || undefined,
+    };
+    onSave(cleanedData);
   };
 
   return (

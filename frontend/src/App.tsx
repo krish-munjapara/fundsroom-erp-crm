@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from './context'
 import { Customers, Products, Inventory, Orders, Dashboard, Reports } from './pages'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
 function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 
