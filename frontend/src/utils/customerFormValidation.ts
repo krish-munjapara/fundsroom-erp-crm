@@ -107,13 +107,15 @@ export function sanitizeCustomerForm(data: CreateCustomerData): CreateCustomerDa
     customer_type: data.customer_type,
     status: data.status,
     follow_up_date: trim(data.follow_up_date),
-    is_active: data.status !== 'inactive',
   };
 }
 
-export function buildCustomerPayload(data: CreateCustomerData): CreateCustomerData {
+export function buildCustomerPayload(
+  data: CreateCustomerData,
+  options?: { includeIsActive?: boolean }
+): CreateCustomerData {
   const sanitized = sanitizeCustomerForm(data);
-  return {
+  const payload: CreateCustomerData = {
     ...sanitized,
     phone: sanitized.phone || undefined,
     address: sanitized.address || undefined,
@@ -125,4 +127,10 @@ export function buildCustomerPayload(data: CreateCustomerData): CreateCustomerDa
     notes: sanitized.notes || undefined,
     follow_up_date: sanitized.follow_up_date || undefined,
   };
+
+  if (options?.includeIsActive) {
+    payload.is_active = data.status !== 'inactive';
+  }
+
+  return payload;
 }

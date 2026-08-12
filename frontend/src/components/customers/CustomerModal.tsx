@@ -95,7 +95,7 @@ function CustomerModal({ onClose, onSave, customer }: CustomerModalProps) {
     setErrors({});
 
     try {
-      const payload = buildCustomerPayload(formData);
+      const payload = buildCustomerPayload(formData, { includeIsActive: !!customer });
       const result = await onSave(payload);
       if (!result.success) {
         setErrors({ submit: result.message });
