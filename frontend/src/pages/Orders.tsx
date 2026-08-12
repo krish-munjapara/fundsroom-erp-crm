@@ -2,8 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { orderService, customerService, productService } from '../services';
 import type { Order, Customer, Product, OrderStats } from '../services';
 import { formatCurrency, safeNumber, formatDate } from '../utils/formatters';
-import { KPICard, StatusBadge, EmptyState } from '../components/ui';
+import { KPICard, StatusBadge, EmptyState, DocumentActions } from '../components/ui';
 import { usePermissions, useSearch, useToast } from '../context';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import { OrderPrintView } from '../components/print/PrintViews';
+import { downloadCsv } from '../utils/exportCsv';
+import { buildOrderCsvRows } from '../documents';
 
 interface OrderFormItem {
   product_id: number;
@@ -690,10 +695,13 @@ function OrderDetailsModal({
   onEdit: () => void;
   onConfirm: (order: Order) => Promise<string | null>;
 }) {
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const isPending = order.status === 'pending';
   const isConfirmed = order.status === 'confirmed';
+  const canExport = !loading && !!order.items?.length;
 
   const handleConfirm = async () => {
     setConfirmError(null);
@@ -868,29 +876,43 @@ function OrderDetailsModal({
           )}
         </div>
 
-        <div className="p-6 border-t border-navy-200 flex justify-between">
-          {isPending && canManage && !loading && (
-            <div className="flex space-x-3">
-              <button
-                onClick={onEdit}
-                disabled={confirming}
-                className="px-4 py-2 border border-primary-300 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"
-              >
-                Edit Order
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={confirming}
-                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 shadow-sm-premium transition-colors disabled:opacity-50"
-              >
-                {confirming ? 'Confirming...' : 'Confirm Order'}
-              </button>
-            </div>
-          )}
+        <div className="p-6 border-t border-navy-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isPending && canManage && !loading && (
+              <>
+                <button
+                  onClick={onEdit}
+                  disabled={confirming}
+                  className="px-4 py-2 border border-primary-300 text-primary-600 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"
+                >
+                  Edit Order
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 shadow-sm-premium transition-colors disabled:opacity-50"
+                >
+                  {confirming ? 'Confirming...' : 'Confirm Order'}
+                </button>
+              </>
+            )}
+            <DocumentActions
+              disabled={!canExport}
+              onPrint={() => runExport(() => print(<OrderPrintView order={order} />))}
+              onExportCsv={() =>
+                runExport(
+                  () =>
+                    downloadCsv(`order-${order.order_number}.csv`, buildOrderCsvRows(order)),
+                  'Order exported as CSV'
+                )
+              }
+              printLabel="Print Order"
+            />
+          </div>
           <button
             onClick={onClose}
             disabled={confirming}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors ml-auto disabled:opacity-50"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors sm:ml-auto disabled:opacity-50"
           >
             Close
           </button>

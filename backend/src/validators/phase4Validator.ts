@@ -27,7 +27,7 @@ export const updateCustomerActivitySchema = Joi.object({
 // Report Filter Validators
 export const reportFiltersSchema = Joi.object({
   start_date: Joi.date().iso(),
-  end_date: Joi.date().iso().greater(Joi.ref('start_date')),
+  end_date: Joi.date().iso().min(Joi.ref('start_date')),
   customer_id: Joi.number().integer().positive(),
   product_id: Joi.number().integer().positive(),
   status: Joi.string(),

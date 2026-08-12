@@ -67,43 +67,63 @@ export function buildReportCsv(reportType: string, data: Record<string, unknown>
   }
 
   if (reportType === 'customers') {
-    const customers = (data.customers as Array<Record<string, unknown>>) || [];
-    rows.push(['Company', 'Contact', 'Email', 'Status', 'Type']);
+    rows.push(
+      ['Total Customers', Number(data.total_customers ?? 0)],
+      ['Active Customers', Number(data.active_customers ?? 0)],
+      ['Total Credit Limit', Number(data.total_credit_limit ?? 0)],
+      []
+    );
+    const customers =
+      (data.top_customers as Array<{
+        company_name: string;
+        contact_person?: string;
+        total_orders: number;
+        total_spent: number;
+      }>) || [];
+    rows.push(['Company', 'Orders', 'Total Spent']);
     customers.forEach((c) =>
-      rows.push([
-        String(c.company_name ?? ''),
-        String(c.contact_person ?? ''),
-        String(c.email ?? ''),
-        String(c.status ?? ''),
-        String(c.customer_type ?? ''),
-      ])
+      rows.push([c.company_name, c.total_orders, c.total_spent])
     );
   }
 
   if (reportType === 'products') {
-    const products = (data.products as Array<Record<string, unknown>>) || [];
-    rows.push(['Name', 'SKU', 'Category', 'Unit Price', 'Stock']);
+    rows.push(
+      ['Total Products', Number(data.total_products ?? 0)],
+      ['Active Products', Number(data.active_products ?? 0)],
+      []
+    );
+    const products =
+      (data.top_selling_products as Array<{
+        product_name: string;
+        sku: string;
+        total_quantity_sold: number;
+        total_revenue: number;
+      }>) || [];
+    rows.push(['Product', 'SKU', 'Quantity Sold', 'Revenue']);
     products.forEach((p) =>
-      rows.push([
-        String(p.name ?? ''),
-        String(p.sku ?? ''),
-        String(p.category ?? ''),
-        Number(p.unit_price ?? 0),
-        Number(p.current_stock ?? 0),
-      ])
+      rows.push([p.product_name, p.sku, p.total_quantity_sold, p.total_revenue])
     );
   }
 
   if (reportType === 'inventory') {
-    const items = (data.items as Array<Record<string, unknown>>) || [];
-    rows.push(['Product', 'SKU', 'Quantity', 'Location']);
+    rows.push(
+      ['Total Products', Number(data.total_products ?? 0)],
+      ['Low Stock', Number(data.low_stock_count ?? 0)],
+      ['Out of Stock', Number(data.out_of_stock_count ?? 0)],
+      ['Total Inventory Value', Number(data.total_inventory_value ?? 0)],
+      []
+    );
+    const items =
+      (data.stock_summary as Array<{
+        product_name: string;
+        sku: string;
+        quantity: number;
+        available_quantity: number;
+        value: number;
+      }>) || [];
+    rows.push(['Product', 'SKU', 'Quantity', 'Available', 'Value']);
     items.forEach((i) =>
-      rows.push([
-        String(i.product_name ?? ''),
-        String(i.sku ?? ''),
-        Number(i.quantity ?? 0),
-        String(i.location ?? ''),
-      ])
+      rows.push([i.product_name, i.sku, i.quantity, i.available_quantity, i.value])
     );
   }
 

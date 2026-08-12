@@ -8,3 +8,4 @@ export { default as FundsroomLogo } from './FundsroomLogo';
 export { default as PageHeader } from './PageHeader';
 export { default as StockStatusBadge } from './StockStatusBadge';
 export { default as TableContainer } from './TableContainer';
+export { default as DocumentActions } from './DocumentActions';

@@ -2,15 +2,21 @@ import { useState, useEffect } from 'react';
 import { customerService, customerActivityService, orderService } from '../services';
 import type { Customer, CreateCustomerData, CustomerActivity } from '../services';
 import type { Order } from '../services';
-import { KPICard } from '../components/ui';
+import { KPICard, DocumentActions } from '../components/ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { usePermissions, useSearch, useToast } from '../context';
 import CustomerModal, { type CustomerSaveResult } from '../components/customers/CustomerModal';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import { CustomerPrintView } from '../components/print/PrintViews';
+import { downloadCsv } from '../utils/exportCsv';
+import { buildCustomersCsvRows, buildCustomerStatementCsvRows } from '../documents';
 
 export default function Customers() {
   const permissions = usePermissions();
   const { consumePendingSearch } = useSearch();
   const { showToast } = useToast();
+  const { runExport } = useDocumentExport();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerOrders, setCustomerOrders] = useState<Record<number, Order[]>>({});
   const [loading, setLoading] = useState(true);
@@ -344,6 +350,15 @@ export default function Customers() {
                 Clear
               </button>
             )}
+            <DocumentActions
+              disabled={filteredCustomers.length === 0}
+              onExportCsv={() =>
+                runExport(
+                  () => downloadCsv('customers.csv', buildCustomersCsvRows(filteredCustomers)),
+                  'Customers exported as CSV'
+                )
+              }
+            />
           </div>
         </div>
       </div>
@@ -961,6 +976,8 @@ function DeleteIcon({ className }: { className?: string }) {
 }
 
 function CustomerDetailsModal({ customer, orders, onClose, onEdit }: { customer: Customer; orders: Order[]; onClose: () => void; onEdit: () => void }) {
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
   const totalSpent = orders.reduce((sum, order) => sum + order.total_amount, 0);
   const totalOrders = orders.length;
   const lastOrder = orders.length > 0 ? orders.reduce((latest, order) => 
@@ -1118,19 +1135,37 @@ function CustomerDetailsModal({ customer, orders, onClose, onEdit }: { customer:
             </div>
           )}
         </div>
-        <div className="p-6 border-t border-navy-200 flex justify-end space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors"
-          >
-            Close
-          </button>
-          <button
-            onClick={onEdit}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors"
-          >
-            Edit Customer
-          </button>
+        <div className="p-6 border-t border-navy-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <DocumentActions
+            onPrint={() =>
+              runExport(() => print(<CustomerPrintView customer={customer} orders={orders} />))
+            }
+            onExportCsv={() =>
+              runExport(
+                () =>
+                  downloadCsv(
+                    `customer-${customer.company_name.replace(/\s+/g, '-').toLowerCase()}.csv`,
+                    buildCustomerStatementCsvRows(customer, orders)
+                  ),
+                'Customer exported as CSV'
+              )
+            }
+            printLabel="Print Customer Details"
+          />
+          <div className="flex justify-end gap-3 sm:ml-auto">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-navy-300 rounded-lg hover:bg-navy-50 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              onClick={onEdit}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors"
+            >
+              Edit Customer
+            </button>
+          </div>
         </div>
       </div>
     </div>

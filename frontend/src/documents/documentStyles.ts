@@ -1,0 +1,153 @@
+export const PRINT_DOCUMENT_CSS = `
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+  }
+  .doc-page { max-width: 780px; margin: 0 auto; }
+  .doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #4f46e5;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+  }
+  .doc-brand-name { font-size: 22px; font-weight: 700; color: #312e81; letter-spacing: 0.02em; }
+  .doc-brand-tagline { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .doc-company-meta { text-align: right; font-size: 11px; color: #475569; }
+  .doc-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 4px; }
+  .doc-subtitle { font-size: 11px; color: #64748b; margin: 0 0 16px; }
+  .doc-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .doc-meta-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .doc-meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; margin-bottom: 3px; }
+  .doc-meta-value { font-size: 12px; font-weight: 600; color: #0f172a; word-break: break-word; }
+  .doc-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    font-weight: 700;
+    margin: 18px 0 8px;
+  }
+  table.doc-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+    page-break-inside: auto;
+  }
+  table.doc-table thead { display: table-header-group; }
+  table.doc-table tr { page-break-inside: avoid; page-break-after: auto; }
+  table.doc-table th {
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid #cbd5e1;
+  }
+  table.doc-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+    word-break: break-word;
+  }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .doc-summary {
+    margin-left: auto;
+    width: min(100%, 320px);
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .doc-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .doc-summary-row.total {
+    border-top: 1px solid #cbd5e1;
+    margin-top: 6px;
+    padding-top: 8px;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .doc-notes {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 12px;
+    white-space: pre-wrap;
+  }
+  .doc-signature {
+    margin-top: 36px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 40px;
+  }
+  .doc-signature-line {
+    border-top: 1px solid #94a3b8;
+    padding-top: 6px;
+    font-size: 11px;
+    color: #64748b;
+  }
+  .doc-footer {
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 10px;
+    color: #94a3b8;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .doc-empty {
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+  }
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+`;
+
+export function wrapDocumentHtml(title: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+  <style>${PRINT_DOCUMENT_CSS}</style>
+</head>
+<body>
+  <div class="doc-page">${body}</div>
+</body>
+</html>`;
+}

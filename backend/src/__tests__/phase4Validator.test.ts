@@ -82,6 +82,16 @@ describe('Phase 4 Validators', () => {
       expect(value).toEqual(data);
     });
 
+    test('should accept same-day date range', () => {
+      const data = {
+        start_date: new Date('2024-03-15'),
+        end_date: new Date('2024-03-15'),
+      };
+
+      const { error } = reportFiltersSchema.validate(data);
+      expect(error).toBeUndefined();
+    });
+
     test('should reject end_date before start_date', () => {
       const data = {
         start_date: new Date('2024-12-31'),

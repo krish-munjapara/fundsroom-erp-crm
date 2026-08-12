@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { challanService, customerService, productService } from '../services';
 import type { Challan, Customer, Product } from '../services';
-import { KPICard, EmptyState } from '../components/ui';
+import { KPICard, EmptyState, DocumentActions } from '../components/ui';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { usePermissions, useSearch, useToast } from '../context';
 import CreateChallanModal from '../components/challans/CreateChallanModal';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import { ChallanPrintView } from '../components/print/PrintViews';
+import { downloadCsv } from '../utils/exportCsv';
+import { buildChallanCsvRows } from '../documents';
 
 export default function Challans() {
   const permissions = usePermissions();
@@ -493,6 +498,10 @@ function ChallansSkeleton() {
 }
 
 function ChallanDetailsModal({ challan, loading, onClose, onConfirm, onCancel }: { challan: Challan; loading?: boolean; onClose: () => void; onConfirm: (c: Challan) => void; onCancel: (c: Challan) => void }) {
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
+  const canExport = !loading && !!challan.items?.length;
+
   return (
     <div className="fixed inset-0 bg-navy-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-lg-premium border border-navy-200 flex flex-col">
@@ -600,24 +609,41 @@ function ChallanDetailsModal({ challan, loading, onClose, onConfirm, onCancel }:
           </div>
           )}
         </div>
-        <div className="p-6 border-t border-navy-200 flex justify-between">
-          {challan.status === 'draft' && !loading && (
-            <div className="flex space-x-3">
-              <button
-                onClick={() => onCancel(challan)}
-                className="px-4 py-2 border border-danger-300 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors"
-              >
-                Cancel Challan
-              </button>
-              <button
-                onClick={() => onConfirm(challan)}
-                className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 shadow-sm-premium transition-colors"
-              >
-                Confirm Challan
-              </button>
-            </div>
-          )}
-          <button onClick={onClose} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors ml-auto">
+        <div className="p-6 border-t border-navy-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {challan.status === 'draft' && !loading && (
+              <>
+                <button
+                  onClick={() => onCancel(challan)}
+                  className="px-4 py-2 border border-danger-300 text-danger-600 rounded-lg hover:bg-danger-50 transition-colors"
+                >
+                  Cancel Challan
+                </button>
+                <button
+                  onClick={() => onConfirm(challan)}
+                  className="px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 shadow-sm-premium transition-colors"
+                >
+                  Confirm Challan
+                </button>
+              </>
+            )}
+            <DocumentActions
+              disabled={!canExport}
+              onPrint={() => runExport(() => print(<ChallanPrintView challan={challan} />))}
+              onExportCsv={() =>
+                runExport(
+                  () =>
+                    downloadCsv(
+                      `challan-${challan.challan_number}.csv`,
+                      buildChallanCsvRows(challan)
+                    ),
+                  'Challan exported as CSV'
+                )
+              }
+              printLabel="Print Challan"
+            />
+          </div>
+          <button onClick={onClose} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors sm:ml-auto">
             Close
           </button>
         </div>

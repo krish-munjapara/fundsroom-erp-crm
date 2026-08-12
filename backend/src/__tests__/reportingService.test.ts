@@ -98,7 +98,7 @@ describe('ReportingService', () => {
       expect(result.total_orders).toBe(50);
       expect(result.sales_trend).toEqual([]);
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('order_date >='),
+        expect.stringContaining('order_date::date >='),
         expect.arrayContaining([expect.any(Date), expect.any(Date)])
       );
     });

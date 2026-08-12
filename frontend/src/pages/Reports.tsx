@@ -1,10 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth, usePermissions, useToast } from '../context';
+import { useAuth, usePermissions } from '../context';
 import { reportingService } from '../services';
-import { EmptyState } from '../components/ui';
+import { EmptyState, DocumentActions } from '../components/ui';
 import SalesReportView, { type SalesReportData } from '../components/reports/SalesReportView';
 import { formatCurrency } from '../utils/formatters';
 import { buildReportCsv, downloadCsv } from '../utils/exportCsv';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import {
+  GenericReportPrintView,
+  SalesReportPrintView,
+} from '../components/print/PrintViews';
+import {
+  buildDateRangeLabel,
+  type SalesReportExportData,
+} from '../documents';
 import {
   DATE_RANGE_PRESET_LABELS,
   getDateRangeForPreset,
@@ -21,7 +31,6 @@ const defaultRange = getDateRangeForPreset('7d');
 export default function Reports() {
   const { isAuthenticated } = useAuth();
   const permissions = usePermissions();
-  const { showToast } = useToast();
   const [reportType, setReportType] = useState<ReportType>('sales');
   const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +39,8 @@ export default function Reports() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('7d');
   const [startDate, setStartDate] = useState<string>(defaultRange.start);
   const [endDate, setEndDate] = useState<string>(defaultRange.end);
-  const [isExporting, setIsExporting] = useState(false);
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
 
   const applyPreset = useCallback((preset: DateRangePreset) => {
     setDatePreset(preset);
@@ -42,7 +52,7 @@ export default function Reports() {
   }, []);
 
   const loadReport = useCallback(async () => {
-    if (datePreset === 'custom' && !isValidDateRange(startDate, endDate)) {
+    if (!isValidDateRange(startDate, endDate)) {
       return;
     }
 
@@ -87,7 +97,7 @@ export default function Reports() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (datePreset === 'custom' && startDate && endDate && !isValidDateRange(startDate, endDate)) {
+    if (startDate && endDate && !isValidDateRange(startDate, endDate)) {
       return;
     }
     loadReport();
@@ -105,6 +115,130 @@ export default function Reports() {
 
   const handleClearDates = () => {
     applyPreset('7d');
+  };
+
+  const dateRangeLabel = buildDateRangeLabel(startDate, endDate);
+
+  const handlePrintReport = () => {
+    if (!reportData) throw new Error('No report data available to print.');
+
+    const reportTypeLabels: Record<ReportType, string> = {
+      sales: 'Sales Report',
+      customers: 'Customers Report',
+      products: 'Products Report',
+      inventory: 'Inventory Report',
+    };
+
+    if (reportType === 'sales') {
+      print(
+        <SalesReportPrintView
+          data={reportData as unknown as SalesReportExportData}
+          reportType={reportTypeLabels.sales}
+          dateRangeLabel={dateRangeLabel}
+        />
+      );
+      return;
+    }
+
+    if (reportType === 'customers') {
+      const rows =
+        (reportData.top_customers as Array<{ company_name: string; total_orders: number; total_spent: number }>) ||
+        [];
+      print(
+        <GenericReportPrintView
+          title="Customer Report"
+          reportTypeLabel={reportTypeLabels.customers}
+          dateRangeLabel={dateRangeLabel}
+          summaryItems={[
+            { label: 'Total Customers', value: Number(reportData.total_customers ?? 0) },
+            { label: 'Active Customers', value: Number(reportData.active_customers ?? 0) },
+            { label: 'Total Credit Limit', value: formatCurrency(Number(reportData.total_credit_limit ?? 0)) },
+          ]}
+          sections={[
+            {
+              heading: 'Top Customers',
+              columns: ['Company', 'Orders', 'Total Spent'],
+              rows: rows.map((row) => [row.company_name, row.total_orders, row.total_spent]),
+            },
+          ]}
+        />
+      );
+      return;
+    }
+
+    if (reportType === 'products') {
+      const rows =
+        (reportData.top_selling_products as Array<{
+          product_name: string;
+          sku: string;
+          total_quantity_sold: number;
+          total_revenue: number;
+        }>) || [];
+      print(
+        <GenericReportPrintView
+          title="Product Performance Report"
+          reportTypeLabel={reportTypeLabels.products}
+          dateRangeLabel={dateRangeLabel}
+          summaryItems={[
+            { label: 'Total Products', value: Number(reportData.total_products ?? 0) },
+            { label: 'Active Products', value: Number(reportData.active_products ?? 0) },
+          ]}
+          sections={[
+            {
+              heading: 'Top Selling Products',
+              columns: ['Product', 'SKU', 'Qty Sold', 'Revenue'],
+              rows: rows.map((row) => [
+                row.product_name,
+                row.sku,
+                row.total_quantity_sold,
+                row.total_revenue,
+              ]),
+            },
+          ]}
+        />
+      );
+      return;
+    }
+
+    const rows =
+      (reportData.stock_summary as Array<{
+        product_name: string;
+        sku: string;
+        quantity: number;
+        available_quantity: number;
+        value: number;
+      }>) || [];
+    print(
+      <GenericReportPrintView
+        title="Inventory Report"
+        reportTypeLabel={reportTypeLabels.inventory}
+        dateRangeLabel={dateRangeLabel}
+        summaryItems={[
+          { label: 'Total Products', value: Number(reportData.total_products ?? 0) },
+          { label: 'Low Stock', value: Number(reportData.low_stock_count ?? 0) },
+          { label: 'Out of Stock', value: Number(reportData.out_of_stock_count ?? 0) },
+          { label: 'Total Value', value: formatCurrency(Number(reportData.total_inventory_value ?? 0)) },
+        ]}
+        sections={[
+          {
+            heading: 'Stock Summary',
+            columns: ['Product', 'SKU', 'Qty', 'Available', 'Value'],
+            rows: rows.map((row) => [
+              row.product_name,
+              row.sku,
+              row.quantity,
+              row.available_quantity,
+              row.value,
+            ]),
+          },
+        ]}
+      />
+    );
+  };
+
+  const handleExportCsv = () => {
+    if (!reportData) throw new Error('No report data available to export.');
+    downloadCsv(`${reportType}-report.csv`, buildReportCsv(reportType, reportData));
   };
 
   if (!isAuthenticated) {
@@ -185,7 +319,7 @@ export default function Reports() {
             <button
               type="button"
               onClick={loadReport}
-              disabled={loading || (datePreset === 'custom' && !isValidDateRange(startDate, endDate))}
+              disabled={loading || !isValidDateRange(startDate, endDate)}
               className="bg-primary-600 text-white px-4 py-2.5 rounded-lg hover:bg-primary-700 shadow-sm-premium transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               {loading ? 'Generating…' : 'Generate Report'}
@@ -198,38 +332,18 @@ export default function Reports() {
               Clear
             </button>
             {permissions.canExportReports && reportData && (
-              <button
-                type="button"
-                disabled={isExporting || loading}
-                onClick={async () => {
-                  setIsExporting(true);
-                  try {
-                    downloadCsv(`${reportType}-report.csv`, buildReportCsv(reportType, reportData));
-                    showToast('Report exported as CSV', 'success');
-                  } finally {
-                    setIsExporting(false);
-                  }
-                }}
-                className="px-4 py-2.5 border border-navy-300 text-navy-700 rounded-lg hover:bg-navy-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-              >
-                {isExporting ? (
-                  <>
-                    <span
-                      className="inline-block h-4 w-4 border-2 border-navy-400 border-t-transparent rounded-full animate-spin"
-                      aria-hidden="true"
-                    />
-                    Exporting…
-                  </>
-                ) : (
-                  'Export CSV'
-                )}
-              </button>
+              <DocumentActions
+                disabled={loading}
+                onPrint={() => runExport(handlePrintReport)}
+                onExportCsv={() => runExport(handleExportCsv, 'Report exported as CSV')}
+                printLabel="Print Report"
+              />
             )}
           </div>
         </div>
 
-        {datePreset === 'custom' && startDate && endDate && startDate > endDate && (
-          <p className="text-sm text-danger-600">Start date must be before or equal to end date.</p>
+        {startDate && endDate && startDate > endDate && (
+          <p className="text-sm text-danger-600">Start date must be on or before the end date.</p>
         )}
       </div>
 

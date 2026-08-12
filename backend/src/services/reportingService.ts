@@ -17,11 +17,11 @@ export class ReportingService {
     let paramIndex = 1;
 
     if (start_date) {
-      conditions.push(`order_date >= $${paramIndex++}`);
+      conditions.push(`order_date::date >= $${paramIndex++}::date`);
       params.push(start_date);
     }
     if (end_date) {
-      conditions.push(`order_date <= $${paramIndex++}`);
+      conditions.push(`order_date::date <= $${paramIndex++}::date`);
       params.push(end_date);
     }
     if (status) {
@@ -164,11 +164,11 @@ export class ReportingService {
     let paramIndex = 1;
 
     if (start_date) {
-      conditions.push(`order_date >= $${paramIndex++}`);
+      conditions.push(`order_date::date >= $${paramIndex++}::date`);
       params.push(start_date);
     }
     if (end_date) {
-      conditions.push(`order_date <= $${paramIndex++}`);
+      conditions.push(`order_date::date <= $${paramIndex++}::date`);
       params.push(end_date);
     }
     if (status) {

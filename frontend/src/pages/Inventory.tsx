@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react';
 import { inventoryService, productService } from '../services';
 import type { StockMovement, Product } from '../services';
-import { KPICard, EmptyState } from '../components/ui';
+import { KPICard, EmptyState, DocumentActions } from '../components/ui';
 import { formatDate } from '../utils/formatters';
 import { usePermissions, useSearch, useToast } from '../context';
 import StockAdjustModal, { type StockAdjustmentSaveResult } from '../components/inventory/StockAdjustModal';
 import { mapStockAdjustmentApiError } from '../utils/stockAdjustmentValidation';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import {
+  MovementHistoryPrintView,
+  StockMovementPrintView,
+  StockReportPrintView,
+} from '../components/print/PrintViews';
+import { downloadCsv } from '../utils/exportCsv';
+import {
+  buildMovementCsvRows,
+  buildStockCsvRows,
+} from '../documents';
 
 export default function Inventory() {
   const permissions = usePermissions();
   const { consumePendingSearch } = useSearch();
   const { showToast } = useToast();
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +89,13 @@ export default function Inventory() {
     
     return matchesSearch && matchesType;
   });
+
+  const movementFilterLabel =
+    movementTypeFilter === 'all'
+      ? searchTerm
+        ? `All movements · Search: ${searchTerm}`
+        : 'All movements'
+      : `${movementTypeFilter.toUpperCase()} movements${searchTerm ? ` · Search: ${searchTerm}` : ''}`;
 
   const handleStockAdjust = async (data: {
     productId: number;
@@ -153,6 +174,20 @@ export default function Inventory() {
         )}
       </div>
 
+      <DocumentActions
+        className="justify-end"
+        onPrint={() =>
+          runExport(() => {
+            if (!products.length) throw new Error('No stock data available to print.');
+            print(<StockReportPrintView products={products} />);
+          })
+        }
+        onExportCsv={() =>
+          runExport(() => downloadCsv('stock-report.csv', buildStockCsvRows(products)), 'Stock CSV exported')
+        }
+        printLabel="Print Stock Report"
+      />
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
@@ -223,6 +258,29 @@ export default function Inventory() {
                 Clear
               </button>
             )}
+            <DocumentActions
+              disabled={filteredMovements.length === 0}
+              onPrint={() =>
+                runExport(() => {
+                  if (!filteredMovements.length) {
+                    throw new Error('No movement history available to print.');
+                  }
+                  print(
+                    <MovementHistoryPrintView
+                      movements={filteredMovements}
+                      filterLabel={movementFilterLabel}
+                    />
+                  );
+                })
+              }
+              onExportCsv={() =>
+                runExport(
+                  () => downloadCsv('stock-movement-history.csv', buildMovementCsvRows(filteredMovements)),
+                  'Movement CSV exported'
+                )
+              }
+              printLabel="Print Movements"
+            />
           </div>
         </div>
       </div>
@@ -316,6 +374,7 @@ export default function Inventory() {
       {showDetailsModal && selectedMovement && (
         <MovementDetailsModal
           movement={selectedMovement}
+          currentStock={products.find((p) => p.id === selectedMovement.product_id)?.current_stock}
           onClose={() => setShowDetailsModal(false)}
         />
       )}
@@ -323,7 +382,17 @@ export default function Inventory() {
   );
 }
 
-function MovementDetailsModal({ movement, onClose }: { movement: StockMovement; onClose: () => void }) {
+function MovementDetailsModal({
+  movement,
+  currentStock,
+  onClose,
+}: {
+  movement: StockMovement;
+  currentStock?: number;
+  onClose: () => void;
+}) {
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -390,8 +459,14 @@ function MovementDetailsModal({ movement, onClose }: { movement: StockMovement; 
             </div>
           </div>
         </div>
-        <div className="p-6 border-t border-navy-200 flex justify-end">
-          <button onClick={onClose} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors">Close</button>
+        <div className="p-6 border-t border-navy-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <DocumentActions
+            onPrint={() =>
+              runExport(() => print(<StockMovementPrintView movement={movement} currentStock={currentStock} />))
+            }
+            printLabel="Print Stock Movement"
+          />
+          <button onClick={onClose} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 shadow-sm-premium transition-colors sm:ml-auto">Close</button>
         </div>
       </div>
     </div>

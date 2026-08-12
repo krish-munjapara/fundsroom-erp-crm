@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react';
 import { productService } from '../services';
 import type { Product, CreateProductData, UpdateProductData } from '../services';
 import { formatCurrency } from '../utils/formatters';
-import { KPICard, StatusBadge, EmptyState, StockStatusBadge } from '../components/ui';
+import { KPICard, StatusBadge, EmptyState, StockStatusBadge, DocumentActions } from '../components/ui';
 import { usePermissions, useSearch, useToast } from '../context';
 import ProductModal, { type ProductSaveResult } from '../components/products/ProductModal';
 import { mapProductApiError } from '../utils/productFormValidation';
+import { useDocumentExport } from '../hooks/useDocumentExport';
+import { usePrint } from '../components/print/PrintProvider';
+import { ProductPriceListPrintView } from '../components/print/PrintViews';
+import { downloadCsv } from '../utils/exportCsv';
+import { buildProductsCsvRows } from '../documents';
 import {
   mapStockAdjustmentApiError,
   parsePositiveQuantityInput,
@@ -17,6 +22,8 @@ export default function Products() {
   const permissions = usePermissions();
   const { consumePendingSearch } = useSearch();
   const { showToast } = useToast();
+  const { runExport } = useDocumentExport();
+  const { print } = usePrint();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -413,6 +420,22 @@ export default function Products() {
                 Clear
               </button>
             )}
+            <DocumentActions
+              disabled={sortedProducts.length === 0}
+              onPrint={() =>
+                runExport(() => {
+                  if (!sortedProducts.length) throw new Error('No products available to print.');
+                  print(<ProductPriceListPrintView products={sortedProducts} />);
+                })
+              }
+              onExportCsv={() =>
+                runExport(
+                  () => downloadCsv('products.csv', buildProductsCsvRows(sortedProducts)),
+                  'Products exported as CSV'
+                )
+              }
+              printLabel="Print Price List"
+            />
           </div>
         </div>
       </div>
