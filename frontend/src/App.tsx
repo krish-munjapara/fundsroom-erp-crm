@@ -90,6 +90,45 @@ function AccessDenied({ message }: { message: string }) {
   )
 }
 
+const LOGIN_FEATURES = [
+  {
+    title: 'Customers',
+    description: 'Manage customer relationships',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Orders',
+    description: 'Create and track orders',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Inventory',
+    description: 'Track stock in real-time',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Reports',
+    description: 'Powerful analytics & insights',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
+] as const
+
 function LoginPage() {
   const { login } = useAuth()
   const { showToast } = useToast()
@@ -103,7 +142,7 @@ function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    
+
     try {
       await login(email, password)
       showToast('Signed in successfully', 'success')
@@ -115,159 +154,194 @@ function LoginPage() {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-[#F7F8FC] flex">
-      {/* Left Brand Panel - 38-40% width on desktop */}
-      <div className="hidden lg:flex lg:w-[40%] bg-gradient-to-br from-[#3730A3] to-[#4F46E5] relative overflow-hidden">
-        {/* Subtle decorative shapes */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-white/3 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/3 rounded-full translate-x-1/2 translate-y-1/2"></div>
-        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-white/2 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-        
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-center px-12 xl:px-16 w-full">
-          {/* Logo */}
-          <div className="mb-6">
-            <FundsroomLogo size="xl" variant="icon-only" className="opacity-90" />
+    <div className="h-full min-h-0 lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row bg-[#F8F9FC]">
+      {/* Left Brand Panel */}
+      <div className="login-brand-panel hidden lg:flex lg:w-[45%] relative overflow-hidden shrink-0">
+        <div className="absolute inset-0 login-dots-pattern pointer-events-none" aria-hidden="true" />
+        <div className="absolute inset-0 login-wave-lines pointer-events-none" aria-hidden="true" />
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-white/[0.04] rounded-full blur-2xl" aria-hidden="true" />
+        <div className="absolute top-1/3 -right-16 w-64 h-64 bg-indigo-400/10 rounded-[2rem] rotate-12" aria-hidden="true" />
+        <div className="absolute bottom-16 left-8 w-48 h-48 bg-violet-500/10 rounded-full blur-xl" aria-hidden="true" />
+
+        <div className="relative z-10 flex flex-col h-full px-10 xl:px-14 py-8 xl:py-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm shadow-lg shadow-indigo-950/20">
+            <FundsroomLogo size="lg" variant="icon-only" />
           </div>
-          
-          {/* Brand Name */}
-          <h1 className="text-3xl xl:text-4xl font-bold text-white mb-1">FUNDSROOM</h1>
-          <p className="text-lg text-white/70 mb-2 font-medium">ERP + CRM Operations Portal</p>
-          
-          {/* Tagline */}
-          <p className="text-white/90 text-xl mb-3 leading-tight font-medium">
-            Run your business smarter.
-          </p>
-          
-          {/* Description */}
-          <p className="text-white/70 text-base mb-10 leading-relaxed max-w-md">
-            Manage customers, orders, inventory and business operations from one powerful platform.
-          </p>
-          
-          {/* Feature Highlights with checkmarks */}
-          <div className="space-y-3 mb-auto">
-            <div className="flex items-center space-x-3">
-              <svg className="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-white/80">Customers</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <svg className="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-white/80">Orders</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <svg className="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-white/80">Inventory</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <svg className="w-5 h-5 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-white/80">Reports</span>
-            </div>
+
+          <div className="mt-8">
+            <h1 className="text-2xl xl:text-3xl font-bold text-white tracking-wide">FUNDSROOM</h1>
+            <p className="text-sm xl:text-base text-white/70 font-medium mt-1">ERP + CRM Operations Portal</p>
+            <div className="mt-4 h-0.5 w-12 bg-gradient-to-r from-indigo-300 to-violet-400 rounded-full" />
           </div>
-          
-          {/* Footer */}
-          <div className="pt-10">
-            <p className="text-white/40 text-sm">© 2026 Fundsroom</p>
+
+          <div className="mt-6 xl:mt-8">
+            <h2 className="text-xl xl:text-2xl font-semibold text-white leading-snug">
+              Run your business smarter.
+            </h2>
+            <p className="mt-3 text-sm xl:text-[15px] text-white/65 leading-relaxed max-w-md">
+              Manage customers, orders, inventory and business operations from one powerful platform.
+            </p>
+          </div>
+
+          <div className="mt-6 xl:mt-8 space-y-4">
+            {LOGIN_FEATURES.map((feature) => (
+              <div key={feature.title} className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-white/80">
+                  {feature.icon}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/90">{feature.title}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{feature.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-auto pt-6">
+            <div className="rounded-xl bg-white/[0.08] border border-white/10 backdrop-blur-sm px-4 py-3.5">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white/80">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/90">Secure. Reliable. Always Available.</p>
+                  <p className="text-xs text-white/50 mt-1 leading-relaxed">
+                    Your business data is protected with enterprise-grade security.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Login Panel - 60-62% width on desktop */}
-      <div className="w-full lg:w-[60%] flex items-center justify-center p-6 sm:p-8 lg:p-12">
-        <div className="w-full max-w-[480px]">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center mb-6">
-            <FundsroomLogo size="lg" variant="icon-only" />
-          </div>
-          
-          {/* Mobile Brand Name */}
-          <div className="lg:hidden text-center mb-6">
-            <h1 className="text-xl font-bold text-[#111827]">FUNDSROOM</h1>
-            <p className="text-[#64748B] text-sm">ERP + CRM</p>
-          </div>
-
-          {/* Welcome Heading */}
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold text-[#111827] mb-2">Welcome back</h2>
-            <p className="text-[#64748B]">Sign in to your Fundsroom workspace</p>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Field */}
-            <div>
-              <label className="block text-sm font-medium text-[#111827] mb-2">Email address</label>
-              <input
-                type="email"
-                required
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-[13px] bg-white border border-[#E2E8F0] rounded-lg text-[#111827] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:border-transparent transition-all"
-              />
+      {/* Right Login Panel */}
+      <div className="w-full lg:w-[55%] flex flex-col min-h-0 flex-1 overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 flex items-center justify-center px-6 sm:px-10 py-10 lg:py-8">
+          <div className="w-full max-w-[420px]">
+            <div className="lg:hidden flex flex-col items-center mb-8">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-[#4F46E5] to-[#3730A3] shadow-md mb-3">
+                <FundsroomLogo size="md" variant="icon-only" />
+              </div>
+              <h1 className="text-lg font-bold text-[#111827] tracking-wide">FUNDSROOM</h1>
+              <p className="text-[#64748B] text-sm">ERP + CRM Operations Portal</p>
             </div>
 
-            {/* Password Field */}
-            <div>
-              <label className="block text-sm font-medium text-[#111827] mb-2">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-[13px] bg-white border border-[#E2E8F0] rounded-lg text-[#111827] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:border-transparent transition-all pr-12"
-                />
+            <div className="mb-6 lg:mb-7">
+              <h2 className="text-2xl sm:text-[1.75rem] font-bold text-[#111827] mb-1.5">
+                Welcome back <span aria-hidden="true">👋</span>
+              </h2>
+              <p className="text-[#64748B] text-sm sm:text-base">Sign in to your Fundsroom workspace</p>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-5 text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="login-email" className="block text-sm font-medium text-[#111827] mb-1.5">
+                  Email address
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </span>
+                  <input
+                    id="login-email"
+                    type="email"
+                    required
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white border border-[#E2E8F0] rounded-xl text-[#111827] placeholder-[#94A3B8] text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/25 focus:border-[#4F46E5] transition-all shadow-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="login-password" className="block text-sm font-medium text-[#111827] mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </span>
+                  <input
+                    id="login-password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-11 pr-12 py-3 bg-white border border-[#E2E8F0] rounded-xl text-[#111827] placeholder-[#94A3B8] text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/25 focus:border-[#4F46E5] transition-all shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#111827] transition-colors focus:outline-none focus:text-[#111827]"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-0.5">
+                <label className="inline-flex items-center gap-2 cursor-default select-none">
+                  <input
+                    type="checkbox"
+                    defaultChecked={false}
+                    className="w-4 h-4 rounded border-[#CBD5E1] text-[#4F46E5] focus:ring-[#4F46E5]/30 pointer-events-none"
+                  />
+                  <span className="text-sm text-[#64748B]">Remember me</span>
+                </label>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#111827] transition-colors focus:outline-none"
+                  className="text-sm font-medium text-[#4F46E5] hover:text-[#4338CA] transition-colors focus:outline-none focus:underline"
                   tabIndex={-1}
                 >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  Forgot password?
                 </button>
               </div>
-            </div>
 
-            {/* Sign In Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#4F46E5] text-white py-[13px] rounded-lg font-medium hover:bg-[#4338CA] disabled:bg-[#9CA3AF] disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2"
-            >
-              {loading ? 'Signing in...' : 'Sign in'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-[#4F46E5] to-[#6366F1] text-white py-3 rounded-xl font-medium hover:from-[#4338CA] hover:to-[#4F46E5] disabled:from-[#9CA3AF] disabled:to-[#9CA3AF] disabled:cursor-not-allowed transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2 shadow-md shadow-indigo-500/20"
+              >
+                {loading ? 'Signing in...' : 'Sign in →'}
+              </button>
+            </form>
 
-          {/* Footer */}
-          <p className="text-center text-[#64748B] text-sm mt-8">
-            © 2026 Fundsroom. All rights reserved.
-          </p>
+            <p className="text-center text-sm text-[#64748B] mt-6">
+              Don&apos;t have an account?{' '}
+              <span className="text-[#4F46E5] font-medium">Contact your administrator</span>
+            </p>
+          </div>
         </div>
+
+        <p className="text-center text-[#94A3B8] text-xs pb-6 lg:pb-8 shrink-0">
+          © 2026 Fundsroom. All rights reserved.
+        </p>
       </div>
     </div>
   )
