@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { ChallanService } from '../services/challanService';
 import { AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
-import { createChallanSchema, updateChallanSchema, paginationSchema } from '../validators';
+import { createChallanSchema, updateChallanSchema, challanPaginationSchema } from '../validators';
 
 export const createChallan = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -39,7 +39,7 @@ export const createChallan = async (req: AuthRequest, res: Response): Promise<vo
 
 export const getAllChallans = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { error, value } = paginationSchema.validate(req.query);
+    const { error, value } = challanPaginationSchema.validate(req.query);
     if (error) {
       throw new AppError(error.details[0].message, 400);
     }

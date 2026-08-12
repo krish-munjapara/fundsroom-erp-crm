@@ -1,4 +1,4 @@
-export { registerSchema, loginSchema } from './authValidator';
+export { registerSchema, loginSchema, updateUserSchema, updateUserStatusSchema } from './authValidator';
 export {
   createCustomerSchema,
   updateCustomerSchema,
@@ -13,6 +13,7 @@ export {
   createChallanSchema,
   updateChallanSchema,
   paginationSchema,
+  challanPaginationSchema,
 } from './businessValidator';
 export {
   createCustomerActivitySchema,

@@ -8,14 +8,14 @@ import {
   getTopProducts,
   getLowStockProducts,
 } from '../controllers/dashboardController';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
+import { DASHBOARD_ROLES } from '../middleware/roles';
 
 const router = Router();
 
-// All dashboard routes require authentication
 router.use(authenticate);
+router.use(authorize(...DASHBOARD_ROLES));
 
-// Dashboard endpoints
 router.get('/stats', getDashboardStats);
 router.get('/recent-orders', getRecentOrders);
 router.get('/recent-activities', getRecentActivities);

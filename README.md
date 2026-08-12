@@ -1,1512 +1,654 @@
-# Fundsroom ERP CRM
+# FUNDSROOM ERP + CRM Operations Portal
 
-A Mini ERP + CRM Operations Portal for wholesale/distribution companies, built for Fundsroom Infotech Pvt. Ltd.
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=nodedotjs&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql&logoColor=white)
+![JWT](https://img.shields.io/badge/Auth-JWT-black)
+![REST API](https://img.shields.io/badge/API-REST-blue)
 
-## Project Overview
+A full-stack **Mini ERP + CRM Operations Portal** built for wholesale and distribution businesses. The application centralizes day-to-day operations—customer relationship management, product catalog, inventory control, sales orders, delivery challans, operational reporting, and role-based dashboards—through a modern React frontend and a RESTful Node.js/Express backend backed by PostgreSQL.
 
-This is a full-stack web application designed to manage business operations for wholesale and distribution companies. The system will handle customer relationships, inventory management, sales tracking, and operational workflows.
-
-**Important:** This project is currently complete with all core business modules including customer management, product management, inventory management, order management, and sales challan generation.
-
-## Technology Stack
-
-### Frontend
-- **React** - UI library
-- **TypeScript** - Type-safe JavaScript
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **Responsive Design** - Mobile-first approach
-
-### Backend
-- **Node.js** - JavaScript runtime
-- **TypeScript** - Type-safe JavaScript
-- **Express.js** - Web framework
-- **REST APIs** - API architecture
-
-### Database
-- **PostgreSQL** - Primary database
-- **Neon PostgreSQL** - Production database (to be configured)
-
-### Authentication
-- **JWT** - JSON Web Tokens for authentication
-- **bcrypt** - Password hashing
-- **Joi** - Request validation
-
-### Development Tools
-- **Git** - Version control
-- **GitHub** - Code hosting
-- **Environment Variables** - Configuration management
-
-## Current Implementation Status
-
-### ✅ Phase 1 - Project Foundation (Complete)
-- Project structure initialization
-- Backend setup with Express.js and TypeScript
-- Frontend setup with React, Vite, and Tailwind CSS
-- Health endpoint implementation
-- Environment variable configuration
-- TypeScript compilation setup
-- Development and production scripts
-
-### ✅ Phase 2 - Database & Authentication (Complete)
-- PostgreSQL database schema design and implementation
-- Database connection configuration with connection pooling
-- Database migration system for users table
-- User model and service layer
-- Password hashing with bcrypt
-- JWT token generation and verification
-- User registration API with validation
-- User login API with authentication
-- Protected routes with authentication middleware
-- Role-based authorization (admin, manager, user)
-- Request validation with Joi
-- Comprehensive test suite for authentication
-- Graceful database connection handling
-
-### ✅ Phase 3 - Core Business Modules (Complete)
-- **Customer Management (CRM)**
-  - Customer database schema with company info, contact details, credit limits
-  - Customer type (retail, wholesale, distributor) and status (lead, active, inactive)
-  - Follow-up date tracking for CRM activities
-  - CRUD APIs for customer operations
-  - Search and filter functionality
-  - Customer status management (active/inactive)
-  - Frontend customer list and management interface
-  - Customer creation and editing forms
-  - Customer activities and follow-up tracking
-- **Product/Service Management**
-  - Product database schema with SKU, pricing, categories
-  - CRUD APIs for product operations
-  - Product status and category management
-  - Tax rate and HSN code support
-  - Unit price with current stock and minimum stock tracking
-  - Location/warehouse information
-  - Frontend product management interface
-  - Product creation and editing forms
-  - Stock adjustment functionality
-- **Inventory Management**
-  - Inventory database schema with stock tracking
-  - Stock quantity and status management
-  - Stock increase/decrease operations
-  - Low-stock detection and alerts
-  - Stock movement tracking with product snapshots
-  - Frontend inventory dashboard
-  - Real-time inventory calculations
-- **Sales/Order Foundation**
-  - Order database schema with customer linking
-  - Order items with product associations
-  - Order status management (pending, confirmed, processing, shipped, delivered, cancelled)
-  - Order totals calculation (subtotal, tax, discount)
-  - Frontend order management interface
-  - Order statistics and reporting
-- **Sales Challan Module**
-  - Challan database schema with auto-generated challan numbers
-  - Challan items with product snapshots (price, quantity at time of creation)
-  - Challan status management (draft, confirmed, cancelled)
-  - Business rules: draft no stock reduction, confirmed reduces stock
-  - Stock validation: insufficient stock API error, non-negative stock prevention
-  - Transaction-safe confirmation with stock OUT movement creation
-  - Frontend challan management interface
-  - Challan statistics and reporting
-
-### ✅ Authentication & Authorization
-- **Role-Based Access Control (RBAC)**
-  - Four roles: Admin, Sales, Warehouse, Accounts
-  - JWT-based authentication with token verification
-  - Protected routes with authentication middleware
-  - Role-based authorization on API endpoints
-  - Frontend route protection based on user role
-  - Default users seeded for all roles (password: Admin@123)
-    - admin@fundsroom.com (Admin)
-    - sales@fundsroom.com (Sales)
-    - warehouse@fundsroom.com (Warehouse)
-    - accounts@fundsroom.com (Accounts)
-
-### ✅ Database & Migrations
-- **PostgreSQL-compatible migrations**
-  - Migration 001: Users table with authentication
-  - Migration 002: Business tables (customers, products, inventory, orders)
-  - Migration 003: CRM activities table
-  - Migration 004: Product model update (PostgreSQL 12+ compatible)
-  - Migration 005: Sales challan tables
-  - Migration 006: Customer fields (customer_type, status, follow_up_date)
-  - All migrations are idempotent and safe to re-run
-  - Automatic migration execution on server startup
-  - Seed data for default users
-
-### 🔄 Future Enhancements (Not Yet Implemented)
-- Advanced dashboard and analytics
-- PDF generation for documents (challans, invoices)
-- Payment processing integration
-- Advanced reporting features
-- Email notifications for follow-ups
-- Multi-warehouse support
-
-## Test Credentials
-
-For testing purposes, the following users are seeded (password: `Admin@123`):
-
-| Role | Email | Permissions |
-|------|-------|------------|
-| Admin | admin@fundsroom.com | Full access to all features |
-| Sales | sales@fundsroom.com | Create/update customers, create/update orders, create/update challans |
-| Warehouse | warehouse@fundsroom.com | Create/update products, adjust stock, record inventory movements |
-| Accounts | accounts@fundsroom.com | View all data, financial reports |
-
-**Security Note:** Change all default passwords in production!
-
-## Deployment Guide
-
-### Prerequisites for Production
-- Node.js (v18 or higher)
-- PostgreSQL database (Neon, AWS RDS, or self-hosted)
-- Domain name and SSL certificate
-- Process manager (PM2 recommended)
-
-### Backend Deployment
-
-1. **Build the backend:**
-```bash
-cd backend
-npm run build
-```
-
-2. **Set production environment variables:**
-```env
-PORT=5000
-NODE_ENV=production
-DATABASE_URL=postgresql://user:password@host:5432/dbname?sslmode=require
-JWT_SECRET=<generate-strong-random-secret>
-FRONTEND_URL=https://yourdomain.com
-```
-
-3. **Install PM2 (process manager):**
-```bash
-npm install -g pm2
-```
-
-4. **Start the backend with PM2:**
-```bash
-pm2 start dist/server.js --name fundsroom-backend
-pm2 save
-pm2 startup
-```
-
-### Frontend Deployment
-
-1. **Build the frontend:**
-```bash
-cd frontend
-npm run build
-```
-
-2. **Set production environment variables:**
-```env
-VITE_API_URL=https://api.yourdomain.com
-```
-
-3. **Deploy to hosting service:**
-   - **Vercel/Netlify:** Upload the `dist` folder
-   - **Nginx/Apache:** Serve static files from `dist` folder
-   - **AWS S3 + CloudFront:** Upload to S3 bucket
-
-### Nginx Configuration Example
-
-```nginx
-server {
-    listen 80;
-    server_name yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com;
-
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-
-    # Frontend
-    location / {
-        root /path/to/frontend/dist;
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Backend API
-    location /api {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-### Database Setup
-
-1. **Create production database:**
-```sql
-CREATE DATABASE fundsroom_erp_crm;
-```
-
-2. **Run migrations:**
-- Migrations run automatically on backend startup
-- Ensure `DATABASE_URL` is correctly configured
-- Verify migration logs in PM2 logs
-
-3. **Seed admin user:**
-- The seed script runs automatically
-- Default admin: `admin@fundsroom.com` / `Admin@123`
-- **Change the password immediately after first login!**
-
-### Security Checklist
-- [ ] Change default admin password
-- [ ] Use strong JWT_SECRET (generate with: `openssl rand -base64 32`)
-- [ ] Enable SSL/HTTPS
-- [ ] Configure CORS properly
-- [ ] Set up firewall rules
-- [ ] Enable database backups
-- [ ] Monitor logs regularly
-- [ ] Set up log rotation
-
-### Monitoring & Maintenance
-
-**View PM2 logs:**
-```bash
-pm2 logs fundsroom-backend
-pm2 logs fundsroom-frontend
-```
-
-**Restart services:**
-```bash
-pm2 restart fundsroom-backend
-```
-
-**Update application:**
-```bash
-# Backend
-cd backend
-git pull
-npm install
-npm run build
-pm2 restart fundsroom-backend
-
-# Frontend
-cd frontend
-git pull
-npm install
-npm run build
-# Redeploy to hosting service
-```
-
-## Project Structure
-
-```
-fundsroom-erp-crm/
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # React components (future)
-│   │   ├── pages/           # Page components (Customers, Products, Inventory, Orders)
-│   │   ├── services/        # API services (api, customer, product, inventory, order, auth)
-│   │   ├── context/         # React context (AuthContext)
-│   │   ├── types/           # TypeScript types (future)
-│   │   ├── App.tsx          # Main app component with routing
-│   │   └── main.tsx         # Entry point
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── tailwind.config.js
-│   └── postcss.config.js
-├── backend/
-│   ├── src/
-│   │   ├── __tests__/       # Test files (auth, database, business validators)
-│   │   ├── config/          # Configuration files (database, migration, env)
-│   │   ├── controllers/     # Request handlers (auth, user, health, customer, product, inventory, order)
-│   │   ├── middleware/      # Express middleware (auth, error handling)
-│   │   ├── migrations/      # SQL migration files (users, business tables)
-│   │   ├── routes/          # API routes (auth, user, health, customer, product, inventory, order)
-│   │   ├── services/        # Business logic (user, customer, product, inventory, order)
-│   │   ├── utils/           # Utility functions (password, JWT)
-│   │   ├── validators/      # Input validation (auth, business validators)
-│   │   ├── types/           # TypeScript types (user, customer, product, inventory, order)
-│   │   ├── app.ts           # Express app configuration
-│   │   └── server.ts        # Server entry point
-│   ├── jest.config.js       # Jest test configuration
-│   ├── package.json
-│   └── tsconfig.json
-├── .gitignore
-├── .env.example
-└── README.md
-```
-
-## Frontend Setup Instructions
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-
-### Installation
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create environment file:
-```bash
-cp .env.example .env
-```
-
-4. Update `.env` with your configuration:
-```env
-VITE_API_URL=http://localhost:5000
-```
-
-## Backend Setup Instructions
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- PostgreSQL (local or Neon) - Ensure PostgreSQL is running and accessible
-
-### Installation
-
-1. Navigate to the backend directory:
-```bash
-cd backend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Create environment file:
-```bash
-cp .env.example .env
-```
-
-4. Update `.env` with your configuration:
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/fundsroom_erp_crm
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_here_change_this_in_production
-
-# Frontend Configuration
-FRONTEND_URL=http://localhost:5173
-```
-
-5. Ensure PostgreSQL is running and the database exists:
-```bash
-# Create database (if needed)
-createdb fundsroom_erp_crm
-```
-
-## Environment Variables
-
-### Backend (.env)
-- `PORT` - Server port (default: 5000)
-- `NODE_ENV` - Environment mode (development/production)
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET` - Secret key for JWT authentication (use strong random string in production)
-- `FRONTEND_URL` - Frontend application URL for CORS
-
-### Frontend (.env)
-- `VITE_API_URL` - Backend API base URL
-
-**Security Note:** Never commit actual `.env` files to version control. Use `.env.example` as a template and create local `.env` files with your actual values.
-
-## How to Run Frontend
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Start the development server:
-```bash
-npm run dev
-```
-
-3. Open your browser and navigate to:
-```
-http://localhost:5173
-```
-
-4. For production build:
-```bash
-npm run build
-npm run preview
-```
-
-## How to Run Backend
-
-1. Navigate to the backend directory:
-```bash
-cd backend
-```
-
-2. Start the development server:
-```bash
-npm run dev
-```
-
-3. The server will start on:
-```
-http://localhost:5000
-```
-
-4. For production:
-```bash
-npm run build
-npm start
-```
-
-## API Documentation
-
-### Health API
-
-#### GET /api/health
-
-Check if the API is running.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Fundsroom ERP CRM API is running"
-}
-```
-
-**Status Code:** 200 OK
-
-### Authentication API
-
-#### POST /api/auth/register
-
-Register a new user account.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "Secure@123",
-  "first_name": "John",
-  "last_name": "Doe",
-  "role": "user"
-}
-```
-
-**Password Requirements:**
-- Minimum 8 characters
-- At least one uppercase letter
-- At least one lowercase letter
-- At least one number
-- At least one special character (@$!%*?&)
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "User registered successfully",
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "first_name": "John",
-      "last_name": "Doe",
-      "role": "user",
-      "is_active": true,
-      "created_at": "2024-01-01T00:00:00.000Z",
-      "updated_at": "2024-01-01T00:00:00.000Z"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
-
-**Status Code:** 201 Created
-
-**Response (Error):**
-```json
-{
-  "success": false,
-  "message": "User with this email already exists"
-}
-```
-
-**Status Code:** 409 Conflict
-
-#### POST /api/auth/login
-
-Authenticate a user and receive a JWT token.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "Secure@123"
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "data": {
-    "user": {
-      "id": 1,
-      "email": "user@example.com",
-      "first_name": "John",
-      "last_name": "Doe",
-      "role": "user",
-      "is_active": true,
-      "created_at": "2024-01-01T00:00:00.000Z",
-      "updated_at": "2024-01-01T00:00:00.000Z"
-    },
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-**Response (Error):**
-```json
-{
-  "success": false,
-  "message": "Invalid email or password"
-}
-```
-
-**Status Code:** 401 Unauthorized
-
-#### GET /api/auth/profile
-
-Get the current user's profile (Protected Route).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "role": "user",
-    "is_active": true,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-**Response (Error):**
-```json
-{
-  "success": false,
-  "message": "No token provided"
-}
-```
-
-**Status Code:** 401 Unauthorized
-
-### User Management API (Admin Only)
-
-#### GET /api/users
-
-Get all users (Admin only).
-
-**Headers:**
-```
-Authorization: Bearer <admin_token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "email": "admin@fundsroom.com",
-      "first_name": "Admin",
-      "last_name": "User",
-      "role": "admin",
-      "is_active": true,
-      "created_at": "2024-01-01T00:00:00.000Z",
-      "updated_at": "2024-01-01T00:00:00.000Z"
-    }
-  ]
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/users/:id
-
-Get a specific user by ID (Admin only).
-
-**Headers:**
-```
-Authorization: Bearer <admin_token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "role": "user",
-    "is_active": true,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-### Customer Management API
-
-#### POST /api/customers
-Create a new customer (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "company_name": "Acme Corporation",
-  "contact_person": "John Smith",
-  "email": "john@acme.com",
-  "phone": "+1234567890",
-  "address": "123 Business St",
-  "city": "Mumbai",
-  "state": "Maharashtra",
-  "postal_code": "400001",
-  "country": "India",
-  "credit_limit": 100000
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Customer created successfully",
-  "data": {
-    "id": 1,
-    "company_name": "Acme Corporation",
-    "contact_person": "John Smith",
-    "email": "john@acme.com",
-    "phone": "+1234567890",
-    "address": "123 Business St",
-    "city": "Mumbai",
-    "state": "Maharashtra",
-    "postal_code": "400001",
-    "country": "India",
-    "credit_limit": 100000,
-    "current_balance": 0,
-    "is_active": true,
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-}
-```
-
-**Status Code:** 201 Created
-
-#### GET /api/customers
-Get all customers with pagination (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `page` - Page number (default: 1)
-- `limit` - Items per page (default: 10)
-- `search` - Search term for company name, contact person, email, or phone
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 25,
-    "pages": 3
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/customers/:id
-Get customer by ID (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "company_name": "Acme Corporation",
-    ...
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-#### PUT /api/customers/:id
-Update customer (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "company_name": "Updated Company Name",
-  "contact_person": "Jane Doe",
-  "email": "jane@acme.com"
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Customer updated successfully",
-  "data": {...}
-}
-```
-
-**Status Code:** 200 OK
-
-#### DELETE /api/customers/:id
-Delete customer (Admin only).
-
-**Headers:**
-```
-Authorization: Bearer <admin_token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Customer deleted successfully"
-}
-```
-
-**Status Code:** 200 OK
-
-### Product Management API
-
-#### POST /api/products
-Create a new product (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "sku": "PROD-001",
-  "name": "Widget A",
-  "description": "High-quality widget",
-  "category": "Electronics",
-  "unit": "pcs",
-  "base_price": 100,
-  "selling_price": 150,
-  "tax_rate": 18,
-  "hsn_code": "8517",
-  "reorder_level": 10
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Product created successfully",
-  "data": {
-    "id": 1,
-    "sku": "PROD-001",
-    "name": "Widget A",
-    ...
-  }
-}
-```
-
-**Status Code:** 201 Created
-
-#### GET /api/products
-Get all products with pagination (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `page` - Page number (default: 1)
-- `limit` - Items per page (default: 10)
-- `search` - Search term for SKU, name, or category
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 50,
-    "pages": 5
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/products/active
-Get all active products (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [...]
-}
-```
-
-**Status Code:** 200 OK
-
-#### PUT /api/products/:id
-Update product (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "name": "Updated Product Name",
-  "selling_price": 175
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Product updated successfully",
-  "data": {...}
-}
-```
-
-**Status Code:** 200 OK
-
-#### DELETE /api/products/:id
-Delete product (Admin only).
-
-**Headers:**
-```
-Authorization: Bearer <admin_token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Product deleted successfully"
-}
-```
-
-**Status Code:** 200 OK
-
-### Inventory Management API
-
-#### POST /api/inventory
-Create inventory record (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "product_id": 1,
-  "quantity": 100,
-  "location": "Warehouse A",
-  "warehouse": "Main Warehouse"
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Inventory record created successfully",
-  "data": {
-    "id": 1,
-    "product_id": 1,
-    "quantity": 100,
-    "reserved_quantity": 0,
-    "available_quantity": 100,
-    ...
-  }
-}
-```
-
-**Status Code:** 201 Created
-
-#### GET /api/inventory
-Get all inventory records (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 1,
-      "product_id": 1,
-      "quantity": 100,
-      "reserved_quantity": 0,
-      "available_quantity": 100,
-      "product_name": "Widget A",
-      "sku": "PROD-001",
-      ...
-    }
-  ]
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/inventory/low-stock
-Get low stock products (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `threshold` - Low stock threshold (default: 10)
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [...]
-}
-```
-
-**Status Code:** 200 OK
-
-#### POST /api/inventory/movements
-Record stock movement (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "product_id": 1,
-  "quantity": 50,
-  "movement_type": "in",
-  "reference_type": "purchase",
-  "reference_id": 123,
-  "notes": "Stock purchase"
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Stock movement recorded successfully"
-}
-```
-
-**Status Code:** 201 Created
-
-### Order Management API
-
-#### POST /api/orders
-Create a new order (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "customer_id": 1,
-  "order_date": "2024-01-15",
-  "delivery_date": "2024-01-20",
-  "status": "pending",
-  "notes": "Urgent delivery",
-  "items": [
-    {
-      "product_id": 1,
-      "quantity": 10,
-      "unit_price": 150,
-      "tax_rate": 18,
-      "item_discount_amount": 0
-    }
-  ]
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Order created successfully",
-  "data": {
-    "id": 1,
-    "order_number": "ORD-20240115-0001",
-    "customer_id": 1,
-    "order_date": "2024-01-15",
-    "status": "pending",
-    "subtotal": 1500,
-    "tax_amount": 270,
-    "discount_amount": 0,
-    "total_amount": 1770,
-    ...
-  }
-}
-```
-
-**Status Code:** 201 Created
-
-#### GET /api/orders
-Get all orders with pagination (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Query Parameters:**
-- `page` - Page number (default: 1)
-- `limit` - Items per page (default: 10)
-- `search` - Search term for order number, customer name, or status
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 15,
-    "pages": 2
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/orders/:id
-Get order by ID with items (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "order_number": "ORD-20240115-0001",
-    "customer_name": "Acme Corporation",
-    "customer_email": "john@acme.com",
-    "status": "pending",
-    "total_amount": 1770,
-    "items": [
-      {
-        "id": 1,
-        "product_id": 1,
-        "quantity": 10,
-        "unit_price": 150,
-        "subtotal": 1500,
-        "total_amount": 1770,
-        "product_name": "Widget A",
-        "product_sku": "PROD-001"
-      }
-    ]
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-#### PATCH /api/orders/:id/status
-Update order status (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "status": "confirmed"
-}
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "message": "Order status updated successfully",
-  "data": {...}
-}
-```
-
-**Status Code:** 200 OK
-
-#### GET /api/orders/stats
-Get order statistics (Authenticated).
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (Success):**
-```json
-{
-  "success": true,
-  "data": {
-    "total_orders": 25,
-    "pending_orders": 5,
-    "confirmed_orders": 10,
-    "delivered_orders": 8,
-    "total_revenue": 42500
-  }
-}
-```
-
-**Status Code:** 200 OK
-
-## Development Scripts
-
-### Backend
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Compile TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run type-check` - Run TypeScript type checking
-- `npm run lint` - Run ESLint
-- `npm test` - Run test suite
-- `npm run test:watch` - Run tests in watch mode
-
-### Frontend
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run linter
-
-## TypeScript Compilation
-
-Both frontend and backend use TypeScript for type safety. The projects are configured to:
-
-- Strict type checking
-- ES2020 target
-- CommonJS modules (backend)
-- ES modules (frontend)
-- Source map generation for debugging
-
-## Database Schema
-
-### Users Table
-
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'user',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_users_email` - For faster email lookups
-- `idx_users_role` - For filtering by role
-- `idx_users_is_active` - For filtering active users
-
-**Default User:**
-- Email: `admin@fundsroom.com`
-- Password: `Admin@123` (Change this in production!)
-- Role: `admin`
-
-### Customers Table
-
-```sql
-CREATE TABLE customers (
-  id SERIAL PRIMARY KEY,
-  company_name VARCHAR(255) NOT NULL,
-  contact_person VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  phone VARCHAR(50),
-  address TEXT,
-  city VARCHAR(100),
-  state VARCHAR(100),
-  postal_code VARCHAR(20),
-  country VARCHAR(100) DEFAULT 'India',
-  tax_id VARCHAR(50),
-  credit_limit DECIMAL(15, 2) DEFAULT 0,
-  current_balance DECIMAL(15, 2) DEFAULT 0,
-  is_active BOOLEAN DEFAULT true,
-  notes TEXT,
-  created_by INTEGER REFERENCES users(id),
-  updated_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_customers_email` - For email uniqueness and lookups
-- `idx_customers_company` - For company name searches
-- `idx_customers_is_active` - For filtering active customers
-
-### Products Table
-
-```sql
-CREATE TABLE products (
-  id SERIAL PRIMARY KEY,
-  sku VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  category VARCHAR(100),
-  unit VARCHAR(50) DEFAULT 'pcs',
-  base_price DECIMAL(15, 2) NOT NULL,
-  selling_price DECIMAL(15, 2) NOT NULL,
-  tax_rate DECIMAL(5, 2) DEFAULT 0,
-  hsn_code VARCHAR(20),
-  is_active BOOLEAN DEFAULT true,
-  reorder_level INTEGER DEFAULT 10,
-  created_by INTEGER REFERENCES users(id),
-  updated_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_products_sku` - For SKU uniqueness and lookups
-- `idx_products_name` - For product name searches
-- `idx_products_category` - For category filtering
-- `idx_products_is_active` - For filtering active products
-
-### Inventory Table
-
-```sql
-CREATE TABLE inventory (
-  id SERIAL PRIMARY KEY,
-  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  quantity INTEGER NOT NULL DEFAULT 0,
-  reserved_quantity INTEGER NOT NULL DEFAULT 0,
-  available_quantity INTEGER GENERATED ALWAYS AS (quantity - reserved_quantity) STORED,
-  location VARCHAR(100),
-  warehouse VARCHAR(100),
-  last_stock_update TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(product_id, location)
-);
-```
-
-**Indexes:**
-- `idx_inventory_product_id` - For product lookups
-- `idx_inventory_location` - For location filtering
-- `idx_inventory_warehouse` - For warehouse filtering
-
-### Orders Table
-
-```sql
-CREATE TABLE orders (
-  id SERIAL PRIMARY KEY,
-  order_number VARCHAR(50) UNIQUE NOT NULL,
-  customer_id INTEGER NOT NULL REFERENCES customers(id),
-  order_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  delivery_date DATE,
-  status VARCHAR(50) DEFAULT 'pending',
-  subtotal DECIMAL(15, 2) NOT NULL DEFAULT 0,
-  tax_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-  discount_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-  total_amount DECIMAL(15, 2) NOT NULL DEFAULT 0,
-  notes TEXT,
-  created_by INTEGER REFERENCES users(id),
-  updated_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_orders_order_number` - For order number lookups
-- `idx_orders_customer_id` - For customer order history
-- `idx_orders_status` - For status filtering
-- `idx_orders_order_date` - For date-based queries
-
-### Order Items Table
-
-```sql
-CREATE TABLE order_items (
-  id SERIAL PRIMARY KEY,
-  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  product_id INTEGER NOT NULL REFERENCES products(id),
-  quantity INTEGER NOT NULL,
-  unit_price DECIMAL(15, 2) NOT NULL,
-  tax_rate DECIMAL(5, 2) DEFAULT 0,
-  discount_amount DECIMAL(15, 2) DEFAULT 0,
-  subtotal DECIMAL(15, 2) GENERATED ALWAYS AS (quantity * unit_price - discount_amount) STORED,
-  total_amount DECIMAL(15, 2) GENERATED ALWAYS AS (subtotal + (subtotal * tax_rate / 100)) STORED,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_order_items_order_id` - For order item lookups
-- `idx_order_items_product_id` - For product sales tracking
-
-### Stock Movements Table
-
-```sql
-CREATE TABLE stock_movements (
-  id SERIAL PRIMARY KEY,
-  product_id INTEGER NOT NULL REFERENCES products(id),
-  movement_type VARCHAR(50) NOT NULL,
-  quantity INTEGER NOT NULL,
-  reference_type VARCHAR(50),
-  reference_id INTEGER,
-  notes TEXT,
-  created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-**Indexes:**
-- `idx_stock_movements_product_id` - For product movement history
-- `idx_stock_movements_movement_type` - For movement type filtering
-- `idx_stock_movements_created_at` - For date-based queries
-
-## Testing
-
-The backend includes a comprehensive test suite using Jest:
-
-### Running Tests
-```bash
-cd backend
-npm test
-```
-
-### Test Coverage
-- Database connection tests
-- Password hashing and verification
-- JWT token generation and verification
-- Request validation schemas (auth and business validators)
-- Authentication flows
-- Business module validation (customers, products, inventory, orders)
-
-**Current Test Results:** 47 tests passing (23 from Phase 2 + 24 from Phase 3)
-
-## Next Steps
-
-Phase 3 will include:
-- Customer management (CRM module)
-- Product and inventory management
-- Sales challan generation
-- Stock movement tracking
-
-## License
-
-ISC
-
-## Author
-
-Fundsroom Infotech Pvt. Ltd.
+Built as a **Full Stack Developer case study** for **Fundsroom Infotech Pvt. Ltd.**
 
 ---
 
-**Note:** This project is under active development. Features and implementation details may change as we progress through the planned phases.
+## 1. Project Overview
+
+### Business context
+
+Wholesale and distribution companies need a single system to track customers, stock levels, sales documents, and fulfillment workflows without relying on spreadsheets or disconnected tools.
+
+### Problem solved
+
+This portal replaces fragmented operational tracking with one authenticated web application where teams can:
+
+- Manage customer records and CRM follow-ups
+- Maintain products and warehouse stock
+- Create sales orders and delivery challans with stock-safe confirmation flows
+- Monitor KPIs and generate operational reports
+
+### Target users
+
+| Role | Typical use |
+|------|-------------|
+| **Admin** | Full system oversight, user registration, deletions |
+| **Sales** | Customers, orders, challans, reports |
+| **Warehouse** | Products, inventory movements, stock adjustments |
+| **Accounts** | Read-focused access to customers, orders, and financial reports |
+
+### Main objective
+
+Deliver a production-style ERP/CRM portal with real database persistence, JWT authentication, role-based access, transactional stock rules, and export/print workflows suitable for portfolio and technical evaluation.
+
+---
+
+## 2. Key Features
+
+| Module | Features |
+|--------|----------|
+| **Authentication** | Email/password login, JWT tokens, session restore via `/api/auth/profile`, global 401 handling, logout, inactive-user rejection |
+| **RBAC** | Four roles (`admin`, `sales`, `warehouse`, `accounts`); frontend page/action gating; backend route-level authorization on write operations |
+| **Customer CRM** | CRUD, search, active/inactive filter, company/contact/address/tax/credit fields, customer types (`retail`, `wholesale`, `distributor`), CRM status (`lead`, `active`, `inactive`), follow-up date, notes, CRM activities (call, email, meeting, etc.) |
+| **Products** | CRUD, SKU, category, description, unit price, current stock, minimum stock, location/warehouse, search/filter, low-stock indicators |
+| **Inventory** | Stock IN/OUT via product adjust-stock, movement history, quantity validation, insufficient-stock rejection, low-stock listing |
+| **Orders** | Create pending orders, edit pending orders, confirm (stock validation + deduction), status updates, product snapshots on line items, revenue-aware reporting |
+| **Sales Challans** | Create draft, edit draft, confirm, cancel, auto challan number, customer + multi-product lines, product snapshots, stock validation on confirm |
+| **Reports** | Sales, customer, product performance, inventory, stock movement summary, stock status; date presets (Today, 7/30 days, 3/6 months, 1 year, custom); CSV export |
+| **Print** | Browser-native print via `PrintProvider` (no popup windows); Print + Export CSV actions on reports, inventory, customers, products, challans, orders |
+| **Dashboard** | Live KPIs from PostgreSQL, sales trend chart, date filters, low-stock counts, recent orders and CRM activities |
+| **Global search** | Topbar search across customers, products, orders, and challans with navigation to the matching module |
+| **Notifications** | Toast success/error feedback across forms and exports |
+| **Settings** | Read-only profile view; **Admin user management UI** (create/edit/activate users) |
+| **Help** | In-app help and support page |
+
+---
+
+## 3. Business Workflow
+
+```mermaid
+flowchart TD
+    A[Customer] --> B[Product Catalog]
+    B --> C[Inventory / Stock IN]
+    C --> D{Document Type}
+    D --> E[Pending Order]
+    D --> F[Draft Challan]
+    E --> G[Confirm Order]
+    F --> H[Confirm Challan]
+    G --> I{Stock Available?}
+    H --> I
+    I -->|Yes| J[Deduct Stock]
+    I -->|No| K[Reject with 409]
+    J --> L[Record Stock OUT Movement]
+    L --> M[Dashboard & Reports]
+```
+
+### Order workflow
+
+- Creating a **pending** order does **not** deduct stock.
+- **Confirming** an order validates available stock for each line item.
+- If stock is insufficient, the API returns **409 Conflict**.
+- On success, `products.current_stock` and `inventory.quantity` are reduced; a **stock OUT** movement is recorded.
+- Product name and SKU snapshots are stored on `order_items` (migration 007).
+- Confirmed orders cannot be deleted; only pending orders can be removed by admin.
+
+### Challan workflow
+
+- New challans are created in **draft** status and do **not** affect stock.
+- Only **draft** challans can be edited.
+- **Confirming** a draft validates stock, deducts quantities, and creates stock OUT movements.
+- **Cancelled** challans cannot be confirmed.
+- Line items store product snapshots (name, SKU, unit price at creation time).
+
+### Inventory workflow
+
+- Primary UI stock changes use `PATCH /api/products/:id/adjust-stock` (Stock IN / Stock OUT).
+- Negative stock is prevented in application logic and by a database check constraint on `products.current_stock`.
+
+---
+
+## 4. User Roles & Permissions
+
+Roles are defined in the database (`users.role`) and enforced in both frontend and backend.
+
+### Frontend permissions (`frontend/src/utils/permissions.ts`)
+
+Navigation and action buttons are gated by role. Unknown roles fall back to **sales** permissions.
+
+| Role | Pages | Notable actions |
+|------|-------|-----------------|
+| **Admin** | All modules + Settings | Full CRUD, user management, delete customers/products |
+| **Sales** | Dashboard, Customers, Products (view), Inventory (view), Challans, Orders, Reports, Help | Manage customers/orders/challans/activities; sales reports |
+| **Warehouse** | Dashboard, Products (view), Inventory, Challans (view), Orders (view), Reports, Help | Stock adjustments; inventory report only |
+| **Accounts** | Dashboard, Customers (view), Products (view), Inventory (view), Orders (view), Challans (view), Reports, Help | View + export sales/customer/product reports |
+
+> **Note:** Frontend permissions improve UX. **Backend authorization is authoritative** for every protected API operation.
+
+### Backend authorization
+
+| Endpoint group | Access |
+|----------------|--------|
+| Customers GET | `admin`, `sales`, `accounts` |
+| Customers write/delete | `admin`, `sales` / `admin` |
+| Products / Inventory / Orders / Challans | Existing write rules unchanged |
+| Dashboard | All four roles (`admin`, `sales`, `warehouse`, `accounts`) |
+| Reports `/sales`, `/customers`, `/products` | `admin`, `sales`, `accounts` |
+| Reports `/inventory`, `/stock-movements`, `/stock-status` | `admin`, `warehouse` |
+| Activities GET | `admin`, `sales`, `accounts` |
+| Activities write/delete | `admin`, `sales` |
+| Users `/api/users/*` | `admin` only |
+| User registration `/api/auth/register` | `admin` only |
+
+---
+
+## 5. Technology Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS 3, Recharts |
+| **Backend** | Node.js, TypeScript, Express.js 4 |
+| **Database** | PostgreSQL (`pg` driver, connection pooling) |
+| **Authentication** | JWT (`jsonwebtoken`), bcrypt password hashing |
+| **Validation** | Joi (request/body/query schemas) |
+| **Testing** | Jest + ts-jest (backend) |
+| **Linting** | oxlint (frontend) |
+| **API client** | Native `fetch` (custom `apiService` wrapper — Axios is **not** used) |
+| **Version control** | Git / GitHub |
+
+**Not configured in this repository:** Docker, CI/CD pipelines, cloud deployment manifests, or a live production URL.
+
+---
+
+## 6. System Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[React + Vite Frontend]
+    end
+    subgraph Server
+        B[Express REST API]
+        C[Controllers]
+        D[Services]
+        E[JWT Auth Middleware]
+    end
+    subgraph Data
+        F[(PostgreSQL)]
+    end
+    A -->|HTTPS / JSON| B
+    B --> E
+    E --> C
+    C --> D
+    D --> F
+```
+
+- **Frontend:** State-based page navigation in `App.tsx` (no React Router). Context providers handle auth, toasts, global search, and print.
+- **Backend:** Layered architecture — Routes → Controllers → Services → SQL queries.
+- **Startup:** Server tests DB connectivity, runs migrations automatically, runs seed scripts in `development` only.
+
+---
+
+## 7. Project Structure
+
+```text
+Fundsroom-ERP-CRM/
+├── README.md
+├── .env.example
+├── .gitignore
+├── Fundsroom-ERP-CRM-API.postman_collection.json
+│
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── .env.example
+│   ├── public/
+│   └── src/
+│       ├── App.tsx                 # Login + page routing
+│       ├── main.tsx
+│       ├── components/
+│       │   ├── ui/                 # Shared UI (KPICard, DocumentActions, etc.)
+│       │   ├── layout/             # AppLayout, Sidebar, Topbar
+│       │   ├── print/              # PrintProvider, PrintViews
+│       │   ├── customers/          # CustomerModal
+│       │   ├── products/           # ProductModal
+│       │   ├── inventory/          # StockAdjustModal
+│       │   ├── challans/           # CreateChallanModal
+│       │   └── reports/            # SalesReportView
+│       ├── context/                # Auth, Toast, Search, permissions hook
+│       ├── documents/              # CSV builders, branding, helpers
+│       ├── hooks/                  # useDocumentExport
+│       ├── pages/                  # Dashboard, Customers, Products, etc.
+│       ├── services/               # API service layer
+│       ├── styles/print.css
+│       └── utils/                  # permissions, validators, formatters, CSV
+│
+└── backend/
+    ├── package.json
+    ├── tsconfig.json
+    ├── .env.example
+    ├── scripts/                    # Demo data reset/verify utilities
+    └── src/
+        ├── server.ts               # Entry point
+        ├── app.ts                  # Express app + CORS
+        ├── config/                 # env, database, migration runner
+        ├── controllers/
+        ├── middleware/             # auth, errorHandler
+        ├── migrations/             # 001–008 SQL migrations
+        ├── routes/
+        ├── services/
+        ├── validators/
+        ├── seeds/                  # Default role users (dev)
+        ├── scripts/                # checkAdmin, testLogin (dev helpers)
+        ├── types/
+        ├── utils/
+        └── __tests__/              # 12 test suites
+```
+
+---
+
+## 8. Database Schema
+
+Migrations run automatically on server startup (`backend/src/config/migration.ts`).
+
+| Migration | Purpose |
+|-----------|---------|
+| **001** | `users` — authentication and roles |
+| **002** | `customers`, `products`, `inventory`, `orders`, `order_items`, `stock_movements` |
+| **003** | `customer_activities` — CRM follow-ups |
+| **004** | Product fields: `unit_price`, `current_stock`, location, warehouse, movement constraints |
+| **005** | `challans`, `challan_items` |
+| **006** | Customer CRM fields: `customer_type`, `status`, `follow_up_date` |
+| **007** | Order item snapshots: `product_name`, `sku` on `order_items` |
+| **008** | Product schema alignment: `minimum_stock` index/sync |
+
+### Core tables and relationships
+
+```text
+users
+customers ──< orders ──< order_items >── products
+customers ──< challans ──< challan_items >── products
+customers ──< customer_activities
+products  ──< inventory
+products  ──< stock_movements
+```
+
+### Notable constraints
+
+- Unique: `users.email`, `products.sku`, `orders.order_number`, `challans.challan_number`
+- Check: non-negative `products.current_stock`, valid `customer_type` / `customer_status`, valid `stock_movements.movement_type` (`in` / `out`)
+- Foreign keys link orders/challans/activities to customers and line items to products
+- `inventory.available_quantity` is a generated column (`quantity - reserved_quantity`)
+
+---
+
+## 9. API Reference
+
+Base URL (local): `http://localhost:5000`
+
+All business endpoints (except health and login) require:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+### Health
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/health` | No | Service health check |
+
+### Authentication
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/login` | No | Login, returns JWT + user |
+| POST | `/api/auth/register` | Admin JWT | Register new user |
+| GET | `/api/auth/profile` | JWT | Current user profile |
+
+### Users (admin only)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/users`, `/:id` | List / view users |
+| POST | `/api/users` | Create user (admin; does not replace admin session token) |
+| PUT | `/api/users/:id` | Update user profile/role |
+| PATCH | `/api/users/:id/status` | Activate/deactivate user |
+
+### Customers
+
+| Method | Endpoint | Role (writes) | Description |
+|--------|----------|---------------|-------------|
+| GET | `/api/customers` | — | List/search (pagination) |
+| GET | `/api/customers/:id` | — | Customer details |
+| POST | `/api/customers` | admin, sales | Create |
+| PUT | `/api/customers/:id` | admin, sales | Update |
+| DELETE | `/api/customers/:id` | admin | Hard delete |
+| PATCH | `/api/customers/:id/deactivate` | admin | Deactivate |
+
+### Products
+
+| Method | Endpoint | Role (writes) | Description |
+|--------|----------|---------------|-------------|
+| GET | `/api/products` | — | List/search |
+| GET | `/api/products/active` | — | Active products only |
+| GET | `/api/products/:id` | — | Product details |
+| POST | `/api/products` | admin, warehouse | Create |
+| PUT | `/api/products/:id` | admin, warehouse | Update |
+| PATCH | `/api/products/:id/adjust-stock` | admin, warehouse | Stock IN/OUT |
+| DELETE | `/api/products/:id` | admin | Delete |
+
+### Inventory
+
+| Method | Endpoint | Role (writes) | Description |
+|--------|----------|---------------|-------------|
+| GET | `/api/inventory` | — | All inventory records |
+| GET | `/api/inventory/low-stock` | — | Low-stock products |
+| GET | `/api/inventory/movements` | — | Stock movement history |
+| GET | `/api/inventory/product/:productId` | — | Inventory by product |
+| POST | `/api/inventory` | admin, warehouse | Create inventory row |
+| POST | `/api/inventory/movements` | admin, warehouse | Record movement (audit log) |
+| PATCH | `/api/inventory/product/:productId/quantity` | admin, warehouse | Adjust inventory quantity |
+| PUT | `/api/inventory/:id` | admin, warehouse | Update inventory row |
+| DELETE | `/api/inventory/:id` | admin | Delete inventory row |
+
+### Orders
+
+| Method | Endpoint | Role (writes) | Description |
+|--------|----------|---------------|-------------|
+| GET | `/api/orders` | — | List/search |
+| GET | `/api/orders/stats` | — | Order statistics |
+| GET | `/api/orders/:id` | — | Order with items |
+| GET | `/api/orders/number/:orderNumber` | — | Lookup by order number |
+| GET | `/api/orders/customer/:customerId` | — | Orders for customer |
+| POST | `/api/orders` | admin, sales | Create pending order |
+| PUT | `/api/orders/:id` | admin, sales | Update pending order |
+| POST | `/api/orders/:id/confirm` | admin, sales | Confirm + deduct stock |
+| PATCH | `/api/orders/:id/status` | admin, sales | Update status |
+| DELETE | `/api/orders/:id` | admin | Delete pending order |
+
+### Sales Challans
+
+| Method | Endpoint | Role (writes) | Description |
+|--------|----------|---------------|-------------|
+| GET | `/api/challans` | — | List/search |
+| GET | `/api/challans/:id` | — | Challan with items |
+| POST | `/api/challans` | admin, sales | Create draft |
+| PUT | `/api/challans/:id` | admin, sales | Update draft |
+| POST | `/api/challans/:id/confirm` | admin, sales | Confirm + deduct stock |
+| POST | `/api/challans/:id/cancel` | admin, sales | Cancel challan |
+| DELETE | `/api/challans/:id` | admin | Delete |
+
+### CRM Activities
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/activities` | List activities |
+| GET | `/api/activities/:id` | Activity by ID |
+| GET | `/api/activities/customer/:customerId` | Activities for customer |
+| GET | `/api/activities/customer/:customerId/timeline` | Activity timeline |
+| POST | `/api/activities` | Create activity |
+| PUT | `/api/activities/:id` | Update activity |
+| DELETE | `/api/activities/:id` | Delete activity |
+
+### Dashboard
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard/stats` | KPI summary (supports date filters) |
+| GET | `/api/dashboard/recent-orders` | Recent orders |
+| GET | `/api/dashboard/recent-activities` | Recent CRM activities |
+| GET | `/api/dashboard/order-status-summary` | Orders grouped by status |
+| GET | `/api/dashboard/sales-trend` | Sales trend series |
+| GET | `/api/dashboard/top-products` | Top selling products |
+| GET | `/api/dashboard/low-stock-products` | Low-stock product list |
+
+### Reports
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/reports/sales` | Sales report (date filters applied) |
+| GET | `/api/reports/customers` | Customer report |
+| GET | `/api/reports/products` | Product performance report |
+| GET | `/api/reports/inventory` | Inventory report |
+| GET | `/api/reports/stock-movements` | Stock movement summary |
+| GET | `/api/reports/stock-status` | Product stock status |
+
+**Query parameters (reports):** `start_date`, `end_date`, `customer_id`, `product_id`, `status` (validated by Joi; same-day ranges are supported).
+
+---
+
+## 10. Local Development Setup
+
+### Prerequisites
+
+- **Node.js** 18+ (20+ recommended)
+- **PostgreSQL** 12+ (local, Docker, or hosted e.g. Neon)
+- **npm**
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd Fundsroom-ERP-CRM
+```
+
+### 2. Configure environment variables
+
+**Backend** — copy and edit:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+**Frontend** — copy and edit:
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+See [Environment Variables](#11-environment-variables) below.
+
+### 3. Install dependencies
+
+```bash
+cd backend && npm install
+cd ../frontend && npm install
+```
+
+### 4. Start PostgreSQL
+
+Create a database (example name: `fundsroom_erp_crm`) and set `DATABASE_URL` in `backend/.env`.
+
+### 5. Start the backend
+
+```bash
+cd backend
+npm run dev
+```
+
+On startup the server will:
+
+1. Test the database connection
+2. Run migrations (`001`–`008`)
+3. Run seed scripts **in development** (default demo users)
+
+API available at: `http://localhost:5000`
+
+### 6. Start the frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+App available at: `http://localhost:5173`
+
+---
+
+## 11. Environment Variables
+
+### Backend (`backend/.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PORT` | No | Server port (default: `5000`) |
+| `NODE_ENV` | No | `development` or `production` |
+| `DATABASE_URL` | **Yes** | PostgreSQL connection string |
+| `JWT_SECRET` | **Yes (production)** | Secret for signing JWTs — **required when `NODE_ENV=production`** |
+| `FRONTEND_URL` | No | Frontend origin (default: `http://localhost:5173`) |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `VITE_API_URL` | No | Backend API URL (default: `http://localhost:5000`) |
+
+> **Security:** Set a strong random `JWT_SECRET` in production. The server **refuses to start** in production without it. Development uses a local-only fallback.
+
+> **CORS:** Restricted to `FRONTEND_URL` (plus localhost in development).
+
+---
+
+## 12. Demo Credentials
+
+Seeded automatically when `NODE_ENV=development`:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@fundsroom.com | Admin@123 |
+| Sales | sales@fundsroom.com | Admin@123 |
+| Warehouse | warehouse@fundsroom.com | Admin@123 |
+| Accounts | accounts@fundsroom.com | Admin@123 |
+
+Change all default passwords before production use.
+
+---
+
+## 13. Testing
+
+### Backend
+
+```bash
+cd backend
+npm test          # Run all tests
+npm run type-check
+npm run build
+```
+
+**Current results (verified locally):**
+
+| Suite | Result |
+|-------|--------|
+| Backend tests | **118 passed** / 118 total (12 suites) |
+| Backend type-check | Pass |
+| Backend build (`tsc`) | Pass |
+
+Test coverage includes: authentication, validators, customer/product/inventory/order services, dashboard, reporting, and database connectivity.
+
+### Frontend
+
+```bash
+cd frontend
+npm run build     # TypeScript + Vite production build
+npm run lint      # oxlint
+```
+
+| Suite | Result |
+|-------|--------|
+| Frontend build | Pass |
+| Frontend unit tests | **Not configured** |
+| Frontend lint | Pass (warnings only) |
+
+---
+
+## 14. Postman Collection
+
+Import `Fundsroom-ERP-CRM-API.postman_collection.json` into Postman.
+
+**Variables:**
+
+| Variable | Default |
+|----------|---------|
+| `baseUrl` | `http://localhost:5000` |
+| `token` | *(set after login)* |
+
+**Workflow:**
+
+1. Send **Login** request to `POST {{baseUrl}}/api/auth/login` with demo credentials.
+2. Copy the JWT from the response into the collection `token` variable.
+3. All other requests use Bearer auth automatically.
+
+> **Postman:** Login request path corrected to `/api/auth/login`. Copy JWT into the `token` collection variable after login.
+
+The collection covers core CRUD endpoints but does **not** yet include all dashboard, reports, or user-management routes.
+
+---
+
+## 15. Developer Scripts
+
+| Script | Location | Purpose |
+|--------|----------|---------|
+| `npm run dev` | frontend / backend | Development servers |
+| `npm run build` | frontend / backend | Production build |
+| `npm start` | backend | Run compiled server |
+| `reset-demo-data.ts` | `backend/scripts/` | Reset demo business data |
+| `verify-demo-data.ts` | `backend/scripts/` | Verify stock/data consistency |
+| `002_fresh_demo_data.sql` | `backend/scripts/` | SQL demo dataset |
+| `checkAdmin.ts`, `testLogin.ts`, `testPassword.ts` | `backend/src/scripts/` | Local auth debugging helpers |
+
+---
+
+## 16. Deployment
+
+**Deployment pending** — no live production URL or automated deployment pipeline is configured in this repository.
+
+General production checklist:
+
+1. Provision PostgreSQL and set `DATABASE_URL`.
+2. Set a strong `JWT_SECRET` and `NODE_ENV=production`.
+3. Build backend: `cd backend && npm run build && npm start`
+4. Build frontend: `cd frontend && npm run build` — serve `frontend/dist` via static hosting (Nginx, Vercel, Netlify, etc.).
+5. Set `VITE_API_URL` to your deployed API URL **before** building the frontend.
+6. Restrict CORS to your frontend domain (currently open in `backend/src/app.ts`).
+7. Move `joi` to production `dependencies` if installing with `npm install --production`.
+
+---
+
+## 17. Implementation Status
+
+### Completed
+
+- Full-stack ERP/CRM modules (customers, products, inventory, orders, challans)
+- JWT authentication with session restoration
+- Role-based frontend navigation and backend write authorization
+- Dashboard with live PostgreSQL KPIs and charts
+- Reports with CSV export and browser print
+- Global topbar search
+- Toast notifications
+- Automatic migrations and development seeds
+- 118 backend unit/integration tests
+
+### Known limitations
+
+| Area | Status |
+|------|--------|
+| **Production deployment** | Not configured — deployment pending |
+| **Frontend unit tests** | Not implemented |
+| **URL routing** | State-based navigation (no deep links / React Router) |
+| **Report date filters (non-sales)** | Customer/product/inventory report APIs do not apply date filters (UI may send them) |
+| **Pagination UI** | Backend supports pagination; frontend loads larger fixed limits |
+| **Postman collection** | Missing dashboard/reports/user-management request groups |
+| **Read endpoints (products/orders/challans)** | JWT required; role checks on GET are partial (customers, dashboard, reports, activities are role-restricted) |
+
+---
+
+## 18. License
+
+ISC — see backend `package.json`.
+
+---
+
+## 19. Author
+
+Developed as a Full Stack Developer case study for **Fundsroom Infotech Pvt. Ltd.**

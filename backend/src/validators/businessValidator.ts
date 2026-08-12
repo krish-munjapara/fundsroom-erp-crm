@@ -265,3 +265,12 @@ export const paginationSchema = Joi.object({
   sort: Joi.string().optional(),
   order: Joi.string().valid('asc', 'desc').optional(),
 });
+
+export const challanPaginationSchema = Joi.object({
+  page: Joi.number().integer().min(1).optional(),
+  limit: Joi.number().integer().min(1).max(500).optional(),
+  search: Joi.string().max(100).optional(),
+  status: Joi.string().valid('draft', 'confirmed', 'cancelled').optional(),
+  sort: Joi.string().optional(),
+  order: Joi.string().valid('asc', 'desc').optional(),
+});

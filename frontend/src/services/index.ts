@@ -16,3 +16,5 @@ export { customerActivityService } from './customerActivityService';
 export type { CustomerActivity, CreateCustomerActivityData } from './customerActivityService';
 export { challanService } from './challanService';
 export type { Challan, ChallanItem, CreateChallanData, UpdateChallanData } from './challanService';
+export { userService } from './userService';
+export type { AppUser, CreateUserPayload, UpdateUserPayload } from './userService';

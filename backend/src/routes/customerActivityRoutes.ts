@@ -8,20 +8,20 @@ import {
   updateActivity,
   deleteActivity,
 } from '../controllers/customerActivityController';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorize } from '../middleware/auth';
+import { ACTIVITY_READ_ROLES, ACTIVITY_WRITE_ROLES } from '../middleware/roles';
 
 const router = Router();
 
-// All customer activity routes require authentication
 router.use(authenticate);
 
-// Activity routes
-router.post('/', createActivity);
-router.get('/', getAllActivities);
-router.get('/customer/:customerId', getActivitiesByCustomerId);
-router.get('/customer/:customerId/timeline', getActivityTimeline);
-router.get('/:id', getActivityById);
-router.put('/:id', updateActivity);
-router.delete('/:id', deleteActivity);
+router.get('/', authorize(...ACTIVITY_READ_ROLES), getAllActivities);
+router.get('/customer/:customerId', authorize(...ACTIVITY_READ_ROLES), getActivitiesByCustomerId);
+router.get('/customer/:customerId/timeline', authorize(...ACTIVITY_READ_ROLES), getActivityTimeline);
+router.get('/:id', authorize(...ACTIVITY_READ_ROLES), getActivityById);
+
+router.post('/', authorize(...ACTIVITY_WRITE_ROLES), createActivity);
+router.put('/:id', authorize(...ACTIVITY_WRITE_ROLES), updateActivity);
+router.delete('/:id', authorize(...ACTIVITY_WRITE_ROLES), deleteActivity);
 
 export default router;

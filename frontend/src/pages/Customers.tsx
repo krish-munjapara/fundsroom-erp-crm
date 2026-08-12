@@ -565,6 +565,7 @@ export default function Customers() {
           onClose={() => setShowActivitiesModal(false)}
           activities={selectedCustomerActivities}
           customerName={selectedCustomerName}
+          canManageActivities={permissions.canManageCustomerActivities}
           onAddActivity={() => {
             setEditingActivity(null);
             setShowActivityFormModal(true);
@@ -645,17 +646,19 @@ export default function Customers() {
   );
 }
 
-function CustomerActivitiesModal({ 
-  onClose, 
-  activities, 
+function CustomerActivitiesModal({
+  onClose,
+  activities,
   customerName,
+  canManageActivities,
   onAddActivity,
   onEditActivity,
-  onDeleteActivity 
-}: { 
-  onClose: () => void; 
-  activities: CustomerActivity[]; 
+  onDeleteActivity,
+}: {
+  onClose: () => void;
+  activities: CustomerActivity[];
   customerName: string;
+  canManageActivities: boolean;
   onAddActivity: () => void;
   onEditActivity: (activity: CustomerActivity) => void;
   onDeleteActivity: (id: number) => void;
@@ -669,6 +672,7 @@ function CustomerActivitiesModal({
               <h2 className="text-xl font-semibold text-navy-900">Activity History</h2>
               <p className="text-sm text-navy-500 mt-1">{customerName}</p>
             </div>
+            {canManageActivities && (
             <button
               onClick={onAddActivity}
               className="inline-flex items-center px-3 py-1.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm shadow-sm-premium transition-colors"
@@ -678,6 +682,7 @@ function CustomerActivitiesModal({
               </svg>
               Add Activity
             </button>
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
@@ -716,6 +721,7 @@ function CustomerActivitiesModal({
                         {new Date(activity.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
+                    {canManageActivities && (
                     <div className="ml-4 flex space-x-2">
                       <button
                         onClick={() => onEditActivity(activity)}
@@ -732,6 +738,7 @@ function CustomerActivitiesModal({
                         <DeleteIcon />
                       </button>
                     </div>
+                    )}
                   </div>
                 </div>
               ))}

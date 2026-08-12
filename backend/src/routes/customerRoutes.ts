@@ -8,17 +8,16 @@ import {
   deactivateCustomer,
 } from '../controllers/customerController';
 import { authenticate, authorize } from '../middleware/auth';
+import { CUSTOMER_READ_ROLES, CUSTOMER_WRITE_ROLES } from '../middleware/roles';
 
 const router = Router();
 
-// All customer routes require authentication
 router.use(authenticate);
 
-// Routes for Sales and Admin
-router.post('/', authorize('admin', 'sales'), createCustomer);
-router.get('/', getAllCustomers);
-router.get('/:id', getCustomerById);
-router.put('/:id', authorize('admin', 'sales'), updateCustomer);
+router.post('/', authorize(...CUSTOMER_WRITE_ROLES), createCustomer);
+router.get('/', authorize(...CUSTOMER_READ_ROLES), getAllCustomers);
+router.get('/:id', authorize(...CUSTOMER_READ_ROLES), getCustomerById);
+router.put('/:id', authorize(...CUSTOMER_WRITE_ROLES), updateCustomer);
 
 // Admin-only routes
 router.delete('/:id', authorize('admin'), deleteCustomer);

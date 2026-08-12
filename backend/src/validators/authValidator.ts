@@ -27,6 +27,17 @@ export const registerSchema = Joi.object({
   role: Joi.string().valid('admin', 'sales', 'warehouse', 'accounts').optional(),
 });
 
+export const updateUserSchema = Joi.object({
+  email: Joi.string().email().optional(),
+  first_name: Joi.string().min(2).max(100).optional(),
+  last_name: Joi.string().min(2).max(100).optional(),
+  role: Joi.string().valid('admin', 'sales', 'warehouse', 'accounts').optional(),
+});
+
+export const updateUserStatusSchema = Joi.object({
+  is_active: Joi.boolean().required(),
+});
+
 export const loginSchema = Joi.object({
   email: Joi.string().email().required().messages({
     'string.email': 'Please provide a valid email address',

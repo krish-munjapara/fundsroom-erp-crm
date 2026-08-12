@@ -1,11 +1,22 @@
 import { Router } from 'express';
-import { getAllUsers, getUserById } from '../controllers/userController';
+import {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  updateUserStatus,
+} from '../controllers/userController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
-// All user routes are protected and require admin role
-router.get('/', authenticate, authorize('admin'), getAllUsers);
-router.get('/:id', authenticate, authorize('admin'), getUserById);
+router.use(authenticate);
+router.use(authorize('admin'));
+
+router.get('/', getAllUsers);
+router.get('/:id', getUserById);
+router.post('/', createUser);
+router.put('/:id', updateUser);
+router.patch('/:id/status', updateUserStatus);
 
 export default router;

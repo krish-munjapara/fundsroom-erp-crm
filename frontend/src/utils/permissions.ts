@@ -11,6 +11,8 @@ export type PageId =
   | 'settings'
   | 'help';
 
+export type ReportTypeId = 'sales' | 'customers' | 'products' | 'inventory';
+
 export interface PermissionSet {
   pages: PageId[];
   canManageCustomers: boolean;
@@ -24,6 +26,8 @@ export interface PermissionSet {
   canViewReports: boolean;
   canExportReports: boolean;
   canAccessSettings: boolean;
+  canManageUsers: boolean;
+  allowedReportTypes: ReportTypeId[];
 }
 
 const ALL_PAGES: PageId[] = [
@@ -37,6 +41,10 @@ const ALL_PAGES: PageId[] = [
   'settings',
   'help',
 ];
+
+const ALL_REPORT_TYPES: ReportTypeId[] = ['sales', 'customers', 'products', 'inventory'];
+const SALES_REPORT_TYPES: ReportTypeId[] = ['sales', 'customers', 'products'];
+const INVENTORY_REPORT_TYPES: ReportTypeId[] = ['inventory'];
 
 const ROLE_PERMISSIONS: Record<AppRole, PermissionSet> = {
   admin: {
@@ -52,6 +60,8 @@ const ROLE_PERMISSIONS: Record<AppRole, PermissionSet> = {
     canViewReports: true,
     canExportReports: true,
     canAccessSettings: true,
+    canManageUsers: true,
+    allowedReportTypes: ALL_REPORT_TYPES,
   },
   sales: {
     pages: ['dashboard', 'customers', 'products', 'inventory', 'challans', 'orders', 'reports', 'help'],
@@ -66,9 +76,11 @@ const ROLE_PERMISSIONS: Record<AppRole, PermissionSet> = {
     canViewReports: true,
     canExportReports: true,
     canAccessSettings: false,
+    canManageUsers: false,
+    allowedReportTypes: SALES_REPORT_TYPES,
   },
   warehouse: {
-    pages: ['dashboard', 'products', 'inventory', 'challans', 'orders', 'help'],
+    pages: ['dashboard', 'products', 'inventory', 'challans', 'orders', 'reports', 'help'],
     canManageCustomers: false,
     canDeleteCustomers: false,
     canManageCustomerActivities: false,
@@ -77,12 +89,14 @@ const ROLE_PERMISSIONS: Record<AppRole, PermissionSet> = {
     canManageInventory: true,
     canManageOrders: false,
     canManageChallans: false,
-    canViewReports: false,
-    canExportReports: false,
+    canViewReports: true,
+    canExportReports: true,
     canAccessSettings: false,
+    canManageUsers: false,
+    allowedReportTypes: INVENTORY_REPORT_TYPES,
   },
   accounts: {
-    pages: ['dashboard', 'customers', 'products', 'inventory', 'orders', 'reports', 'help'],
+    pages: ['dashboard', 'customers', 'products', 'inventory', 'challans', 'orders', 'reports', 'help'],
     canManageCustomers: false,
     canDeleteCustomers: false,
     canManageCustomerActivities: false,
@@ -94,6 +108,8 @@ const ROLE_PERMISSIONS: Record<AppRole, PermissionSet> = {
     canViewReports: true,
     canExportReports: true,
     canAccessSettings: false,
+    canManageUsers: false,
+    allowedReportTypes: SALES_REPORT_TYPES,
   },
 };
 
@@ -112,4 +128,8 @@ export function canAccessPage(role: string | undefined, page: string): boolean {
 export function getDefaultPageForRole(role?: string): PageId {
   const pages = getPermissions(role).pages;
   return pages[0] || 'dashboard';
+}
+
+export function canAccessReportType(role: string | undefined, reportType: ReportTypeId): boolean {
+  return getPermissions(role).allowedReportTypes.includes(reportType);
 }

@@ -21,17 +21,26 @@ import {
   isValidDateRange,
   type DateRangePreset,
 } from '../utils/dateRangePresets';
+import type { ReportTypeId } from '../utils/permissions';
 
-type ReportType = 'sales' | 'customers' | 'products' | 'inventory';
+type ReportType = ReportTypeId;
 
 const PRESET_OPTIONS: DateRangePreset[] = ['today', '7d', '30d', '3m', '6m', '1y', 'custom'];
 
 const defaultRange = getDateRangeForPreset('7d');
 
+const REPORT_TYPE_LABELS: Record<ReportType, string> = {
+  sales: 'Sales Report',
+  customers: 'Customers Report',
+  products: 'Products Report',
+  inventory: 'Inventory Report',
+};
+
 export default function Reports() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const permissions = usePermissions();
-  const [reportType, setReportType] = useState<ReportType>('sales');
+  const allowedReportTypes = permissions.allowedReportTypes;
+  const [reportType, setReportType] = useState<ReportType>(allowedReportTypes[0] || 'sales');
   const [reportData, setReportData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -41,6 +50,12 @@ export default function Reports() {
   const [endDate, setEndDate] = useState<string>(defaultRange.end);
   const { runExport } = useDocumentExport();
   const { print } = usePrint();
+
+  useEffect(() => {
+    if (!allowedReportTypes.includes(reportType)) {
+      setReportType(allowedReportTypes[0] || 'sales');
+    }
+  }, [allowedReportTypes, reportType, user?.role]);
 
   const applyPreset = useCallback((preset: DateRangePreset) => {
     setDatePreset(preset);
@@ -291,10 +306,9 @@ export default function Reports() {
               onChange={(e) => setReportType(e.target.value as ReportType)}
               className="w-full border border-navy-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
             >
-              <option value="sales">Sales Report</option>
-              <option value="customers">Customers Report</option>
-              <option value="products">Products Report</option>
-              <option value="inventory">Inventory Report</option>
+              {allowedReportTypes.map((type) => (
+                <option key={type} value={type}>{REPORT_TYPE_LABELS[type]}</option>
+              ))}
             </select>
           </div>
           <div>

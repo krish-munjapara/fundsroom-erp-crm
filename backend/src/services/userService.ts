@@ -36,19 +36,31 @@ export class UserService {
 
   static async updateUser(id: number, updates: Partial<CreateUserDto>): Promise<User | null> {
     const { email, first_name, last_name, role } = updates;
-    
+
     const query = `
       UPDATE users
       SET email = COALESCE($1, email),
           first_name = COALESCE($2, first_name),
           last_name = COALESCE($3, last_name),
-          role = COALESCE($4, role)
+          role = COALESCE($4, role),
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = $5
       RETURNING *
     `;
-    
+
     const values = [email, first_name, last_name, role, id];
     const result = await pool.query(query, values);
+    return result.rows[0] || null;
+  }
+
+  static async setUserActive(id: number, isActive: boolean): Promise<User | null> {
+    const query = `
+      UPDATE users
+      SET is_active = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `;
+    const result = await pool.query(query, [isActive, id]);
     return result.rows[0] || null;
   }
 

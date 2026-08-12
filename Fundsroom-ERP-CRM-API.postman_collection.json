@@ -68,7 +68,7 @@
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "register"]
+              "path": ["api", "auth", "login"]
             },
             "description": "Login to get JWT token. Copy the token from response and set it in the collection variable 'token'"
           }
