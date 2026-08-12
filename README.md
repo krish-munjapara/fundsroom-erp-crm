@@ -651,4 +651,10 @@ ISC — see backend `package.json`.
 
 ## 19. Author
 
-Developed as a Full Stack Developer case study for **Fundsroom Infotech Pvt. Ltd.**
+Munjapara Krish Nitinbhai
+B.Tech — Computer Science Engineering (Big Data Analytics)
+Parul University | 2027
+
+Project: Fundsroom ERP + CRM
+Role: Full Stack Developer
+Organization: Fundsroom Infotech Pvt. Ltd.
