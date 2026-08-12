@@ -22,8 +22,8 @@ const startServer = async (): Promise<void> => {
       await runSeeds();
     }
 
-    // Start server
-    const server = app.listen(PORT, () => {
+    // Bind to 0.0.0.0 for Render/cloud hosting; works for local development too
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
