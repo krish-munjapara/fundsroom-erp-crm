@@ -63,6 +63,67 @@ export class OrderService {
     };
   }
 
+  private static async insertOrderItem(
+    client: any,
+    orderId: number,
+    item: OrderItemDto,
+    product: any,
+    unitPrice: number,
+    taxRate: number,
+    discountAmount: number,
+    lineSubtotal: number,
+    lineTotal: number
+  ): Promise<void> {
+    const snapshotValues = [
+      orderId,
+      item.product_id,
+      product.name,
+      product.sku,
+      item.quantity,
+      unitPrice,
+      taxRate,
+      discountAmount,
+      lineSubtotal,
+      lineTotal,
+    ];
+
+    const baseValues = [
+      orderId,
+      item.product_id,
+      item.quantity,
+      unitPrice,
+      taxRate,
+      discountAmount,
+      lineSubtotal,
+      lineTotal,
+    ];
+
+    try {
+      await client.query(
+        `INSERT INTO order_items (
+          order_id, product_id, product_name, sku, quantity, unit_price,
+          tax_rate, discount_amount, subtotal, total_amount
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        snapshotValues
+      );
+    } catch (error: any) {
+      // Production DBs created before migration 007 lack product_name/sku columns.
+      if (error?.code !== '42703') {
+        throw error;
+      }
+
+      await client.query(
+        `INSERT INTO order_items (
+          order_id, product_id, quantity, unit_price,
+          tax_rate, discount_amount, subtotal, total_amount
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        baseValues
+      );
+    }
+  }
+
   static async createOrder(orderData: CreateOrderDto, userId: number): Promise<Order> {
     const client = await pool.connect();
 
@@ -140,24 +201,16 @@ export class OrderService {
         const { unitPrice, taxRate, discountAmount } = this.resolveItemPricing(item, product);
         const totals = this.calculateItemTotals(item.quantity, unitPrice, taxRate, discountAmount);
 
-        await client.query(
-          `INSERT INTO order_items (
-            order_id, product_id, product_name, sku, quantity, unit_price,
-            tax_rate, discount_amount, subtotal, total_amount
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [
-            order.id,
-            item.product_id,
-            product.name,
-            product.sku,
-            item.quantity,
-            unitPrice,
-            taxRate,
-            discountAmount,
-            totals.lineSubtotal,
-            totals.lineTotal,
-          ]
+        await this.insertOrderItem(
+          client,
+          order.id,
+          item,
+          product,
+          unitPrice,
+          taxRate,
+          discountAmount,
+          totals.lineSubtotal,
+          totals.lineTotal
         );
       }
 
@@ -358,24 +411,16 @@ export class OrderService {
           const { unitPrice, taxRate, discountAmount } = this.resolveItemPricing(item, product);
           const totals = this.calculateItemTotals(item.quantity, unitPrice, taxRate, discountAmount);
 
-          await client.query(
-            `INSERT INTO order_items (
-              order_id, product_id, product_name, sku, quantity, unit_price,
-              tax_rate, discount_amount, subtotal, total_amount
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [
-              id,
-              item.product_id,
-              product.name,
-              product.sku,
-              item.quantity,
-              unitPrice,
-              taxRate,
-              discountAmount,
-              totals.lineSubtotal,
-              totals.lineTotal,
-            ]
+          await this.insertOrderItem(
+            client,
+            id,
+            item,
+            product,
+            unitPrice,
+            taxRate,
+            discountAmount,
+            totals.lineSubtotal,
+            totals.lineTotal
           );
         }
 
